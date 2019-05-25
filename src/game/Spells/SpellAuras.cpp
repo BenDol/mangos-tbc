@@ -1807,14 +1807,6 @@ void Aura::TriggerSpell()
                         triggerTarget->RemoveAurasDueToSpell(28820);
                         return;
                     }
-                    case 38443:                             // Totemic Mastery (Skyshatter Regalia (Shaman Tier 6) - bonus)
-                    {
-                        if (triggerTarget->IsAllTotemSlotsUsed())
-                            triggerTarget->CastSpell(triggerTarget, 38437, TRIGGERED_OLD_TRIGGERED, nullptr, this);
-                        else
-                            triggerTarget->RemoveAurasDueToSpell(38437);
-                        return;
-                    }
                     default:
                         break;
                 }
@@ -1860,6 +1852,15 @@ void Aura::TriggerSpell()
         // Spell exist but require custom code
         switch (auraId)
         {
+            case 38443:                            // Totemic Mastery (Skyshatter Regalia (Shaman Tier 6) - bonus)
+            {
+                Unit* caster = GetCaster();
+                if (caster->IsAllTotemSlotsUsed())
+                    caster->CastSpell(caster, 38437, TRIGGERED_OLD_TRIGGERED);
+                else
+                    caster->RemoveAurasDueToSpell(38437);
+                return;
+            }
             case 9347:                                      // Mortal Strike
             {
                 if (target->GetTypeId() != TYPEID_UNIT)
@@ -2576,8 +2577,8 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
                 return;
             }
-            case 35016:										// Interrupt shutdown
-            case 35176:										// Interrupt shutdown (ara)
+            case 35016:                                        // Interrupt shutdown
+            case 35176:                                        // Interrupt shutdown (ara)
             {
                 if (m_removeMode == AURA_REMOVE_BY_DEFAULT)
                 {
@@ -7522,6 +7523,8 @@ inline bool IsRemovedOnShapeshiftLost(SpellEntry const* spellproto, ObjectGuid c
                 case 11329: // but they have attribute SPELL_ATTR_NOT_SHAPESHIFT
                 case 26888: // maybe relic from when they had Effect1?
                     return true;
+                case 12328:
+                    return false;
                 default:
                     break;
             }

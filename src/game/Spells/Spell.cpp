@@ -6496,8 +6496,19 @@ SpellCastResult Spell::CheckItems()
     // if not item target then required item must be equipped (for triggered case not report error)
     else
     {
-        if (m_caster->GetTypeId() == TYPEID_PLAYER && !((Player*)m_caster)->HasItemFitToSpellReqirements(m_spellInfo))
-            return m_IsTriggeredSpell ? SPELL_FAILED_DONT_REPORT : SPELL_FAILED_EQUIPPED_ITEM_CLASS;
+        if (auto player = (Player*)m_caster)
+        {
+            Item* ignore = nullptr;
+            if (m_attackType == BASE_ATTACK)
+                ignore = player->GetWeaponForAttack(OFF_ATTACK);
+            else if (m_attackType == OFF_ATTACK)
+                ignore = player->GetWeaponForAttack(BASE_ATTACK);
+
+            if (!player->HasItemFitToSpellReqirements(m_spellInfo, ignore))
+            {
+                return m_IsTriggeredSpell ? SPELL_FAILED_DONT_REPORT : SPELL_FAILED_EQUIPPED_ITEM_CLASS;
+            }
+        }
     }
 
     // check reagents (ignore triggered spells with reagents processed by original spell) and special reagent ignore case.
