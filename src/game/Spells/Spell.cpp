@@ -3236,11 +3236,7 @@ void Spell::cast(bool skipCheck)
     SpellCastResult castResult = CheckPower();
     if (castResult != SPELL_CAST_OK)
     {
-        SendCastResult(castResult);
-        SendInterrupted(castResult);
-        finish(false);
-        m_caster->DecreaseCastCounter();
-        SetExecutedCurrently(false);
+        StopCast(castResult);
         return;
     }
 
@@ -3250,11 +3246,7 @@ void Spell::cast(bool skipCheck)
         castResult = CheckCast(false);
         if (castResult != SPELL_CAST_OK)
         {
-            SendCastResult(castResult);
-            SendInterrupted(castResult);
-            finish(false);
-            m_caster->DecreaseCastCounter();
-            SetExecutedCurrently(false);
+            StopCast(castResult);
             return;
         }
     }
@@ -3359,6 +3351,21 @@ void Spell::cast(bool skipCheck)
                     m_caster->RemoveSpellCooldown(*stealthSpellEntry);
 
                 m_caster->CastSpell(m_caster, stealthSpellEntry, TRIGGERED_OLD_TRIGGERED);
+            }
+            break;
+        }
+        case SPELLFAMILY_WARLOCK:
+        {
+            // Create Healthstone
+            if (m_spellInfo->Id == 27230 || m_spellInfo->Id == 11730 || m_spellInfo->Id == 11729 
+                || m_spellInfo->Id == 6202 || m_spellInfo->Id == 6201 || m_spellInfo->Id == 5699)
+            {
+                // check if we already have a healthstone
+                uint32 itemType = GetUsableHealthStoneItemType(m_caster);
+                if (itemType && m_caster->IsPlayer() && ((Player*)m_caster)->GetItemCount(itemType) > 0)
+                {
+                    StopCast(castResult);
+                }
             }
             break;
         }
@@ -4381,7 +4388,7 @@ void Spell::TakeAmmo() const
 
 void Spell::TakeReagents()
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+    if (!m_caster->IsPlayer())
         return;
 
     if (IgnoreItemRequirements())                           // reagents used in triggered spell removed by original spell or don't must be removed.
@@ -7841,4 +7848,13 @@ void Spell::OnSuccessfulSpellFinish()
             break;
         }
     }
+}
+
+void Spell::StopCast(SpellCastResult castResult)
+{
+    SendCastResult(castResult);
+    SendInterrupted(castResult);
+    finish(false);
+    m_caster->DecreaseCastCounter();
+    SetExecutedCurrently(false);
 }
