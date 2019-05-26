@@ -1,27 +1,35 @@
-cmake_minimum_required(VERSION 3.0)
+#
+# This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
 
-project(RecastNavigation)
+if (BUILD_GAME_SERVER OR BUILD_EXTRACTORS OR BUILD_RECASTDEMOMOD)
+  add_definitions(-DDT_POLYREF64)
+  add_subdirectory(Detour)
+  target_include_directories(detour
+    INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+endif()
 
-# lib versions
-SET(SOVERSION 1)
-SET(VERSION 1.0.0)
+if (BUILD_EXTRACTORS OR BUILD_RECASTDEMOMOD)
+  add_subdirectory(Recast)
+endif()
 
-option(RECASTNAVIGATION_DEMO "Build demo" ON)
-option(RECASTNAVIGATION_TESTS "Build tests" ON)
-option(RECASTNAVIGATION_EXAMPLES "Build examples" ON)
-option(RECASTNAVIGATION_STATIC "Build static libraries" ON)
-
-add_subdirectory(DebugUtils)
-add_subdirectory(Detour)
-add_subdirectory(DetourCrowd)
-add_subdirectory(DetourTileCache)
-add_subdirectory(Recast)
-
-if (RECASTNAVIGATION_DEMO)
-    add_subdirectory(RecastDemo)
-endif ()
-
-if (RECASTNAVIGATION_TESTS)
-    enable_testing()
-    add_subdirectory(Tests)
-endif ()
+if (BUILD_RECASTDEMOMOD)
+  add_subdirectory(DetourCrowd)
+  add_subdirectory(DetourTileCache)
+  add_subdirectory(DebugUtils)
+endif()
