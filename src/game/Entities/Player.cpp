@@ -6864,25 +6864,37 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
 
     if (m_zoneUpdateId != newZone || force)
     {
+        // HACKFIX: https://github.com/cmangos/issues/issues/1872
+        if (newZone == 3277)
+        {
+            SendInitWorldStates(newZone, newArea);
+            sWorldState.HandlePlayerLeaveArea(this, m_areaUpdateId);
+            sWorldState.HandlePlayerEnterArea(this, newArea);
+        }
+
         // handle outdoor pvp zones
         sOutdoorPvPMgr.HandlePlayerLeaveZone(this, m_zoneUpdateId);
         sWorldState.HandlePlayerLeaveZone(this, m_zoneUpdateId);
         sOutdoorPvPMgr.HandlePlayerEnterZone(this, newZone);
         sWorldState.HandlePlayerEnterZone(this, newZone);
-
-        if (sWorld.getConfig(CONFIG_BOOL_WEATHER))
-        {
-            Weather* wth = GetMap()->GetWeatherSystem()->FindOrCreateWeather(newZone);
-            wth->SendWeatherUpdateToPlayer(this);
-        }
     }
 
     if (m_areaUpdateId != newArea || force)
     {
-        SendInitWorldStates(newZone, newArea); // only if really enters to new zone, not just area change, works strange...
+        // HACKFIX: https://github.com/cmangos/issues/issues/1872
+        if (newZone != 3277)
+        {
+            SendInitWorldStates(newZone, newArea); // only if really enters to new zone, not just area change, works strange...
 
-        sWorldState.HandlePlayerLeaveArea(this, m_areaUpdateId);
-        sWorldState.HandlePlayerEnterArea(this, newArea);
+            sWorldState.HandlePlayerLeaveArea(this, m_areaUpdateId);
+            sWorldState.HandlePlayerEnterArea(this, newArea);
+
+            if (sWorld.getConfig(CONFIG_BOOL_WEATHER))
+            {
+                Weather* wth = GetMap()->GetWeatherSystem()->FindOrCreateWeather(newZone);
+                wth->SendWeatherUpdateToPlayer(this);
+            }
+        }
     }
 
     m_zoneUpdateId    = newZone;
