@@ -206,8 +206,14 @@ if (POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
 
+set(BOOST_COMPONENTS system program_options thread regex)
+
+if (BUILD_TESTING)
+  set(BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)
+endif()
+
 # Find needed packages and if necessery abort if something important is missing
-find_package(Boost REQUIRED COMPONENTS system program_options thread regex)
+find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 
 if(NOT Boost_FOUND)
   message(STATUS "BOOST_ROOT = $ENV{BOOST_ROOT}")
