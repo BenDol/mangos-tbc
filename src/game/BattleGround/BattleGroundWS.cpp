@@ -171,7 +171,7 @@ void BattleGroundWS::EventPlayerCapturedFlag(Player* player)
     if (m_TeamScores[teamIdx] < BG_WS_MAX_TEAM_SCORE)
         m_TeamScores[teamIdx] += 1;
     
-    PlaySoundToAll(wsSounds[otherTeamIdx][BG_WS_FLAG_ACTION_CAPTURED]);
+    PlaySoundToAll(wsSounds[teamIdx][BG_WS_FLAG_ACTION_CAPTURED]);
     RewardReputationToTeam(890, m_ReputationCapture, player->GetTeam());
 
     // for flag capture is reward 2 honorable kills
