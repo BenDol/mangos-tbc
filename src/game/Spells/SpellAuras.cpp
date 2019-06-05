@@ -1833,15 +1833,6 @@ void Aura::TriggerSpell()
         // Spell exist but require custom code
         switch (auraId)
         {
-            case 38443:                            // Totemic Mastery (Skyshatter Regalia (Shaman Tier 6) - bonus)
-            {
-                Unit* caster = GetCaster();
-                if (caster->IsAllTotemSlotsUsed())
-                    caster->CastSpell(caster, 38437, TRIGGERED_OLD_TRIGGERED);
-                else
-                    caster->RemoveAurasDueToSpell(38437);
-                return;
-            }
             case 9347:                                      // Mortal Strike
             {
                 if (target->GetTypeId() != TYPEID_UNIT)
@@ -1922,6 +1913,11 @@ void Aura::TriggerSpell()
             }
             // dummy trigger 18350 family
             case 28820:                                     // Lightning Shield
+            case 38443:                                     // Totemic Mastery
+            {
+                triggerTarget = target;
+                break;
+            }
             case 38736:                                     // Rod of Purification - for quest 10839 (Veil Skith: Darkstone of Terokk)
             {
                 if (Unit* caster = GetCaster())
