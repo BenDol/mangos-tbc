@@ -15,42 +15,37 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#ifndef TEST_ENGINE_H
+#define TEST_ENGINE_H
 
- /// \addtogroup mangosd Mangos Daemon
- /// @{
- /// \file
-#ifndef _TEST_ENGINE_H
-#define _TEST_ENGINE_H
+#include "TestServer.h"
 
-#include "Common.h"
-#include "Database/DatabaseEnv.h"
-#include "Config/Config.h"
-#include "ProgressBar.h"
-#include "Log.h"
-#include "Master.h"
-#include "SystemConfig.h"
-#include "AuctionHouseBot/AuctionHouseBot.h"
-
-#include <openssl/opensslv.h>
-#include <openssl/crypto.h>
-
-#include <boost/program_options.hpp>
-#include <boost/version.hpp>
-
-#include <iostream>
-#include <string>
-
-/// Start the server
-class TestEngine
-{
+class TestEngine {
 public:
-    TestEngine() {
-        std::cout << "Creating" << std::endl;
-    };
+    TestEngine() : serverThread(nullptr) {}
+    ~TestEngine() {}
 
-    int start(int argc, char* argv[]);
+    void run() {
+        if (serverThread == nullptr) {
+            serverThread = new MaNGOS::Thread(new ServerRunnable);
+        }
+    }
+
+    void kill() {
+        // end the test server
+        sTestServer.end();
+
+        // destroy the server thread
+        serverThread->destroy();
+    }
+
+    MaNGOS::Thread* getServerThread() {
+        return serverThread;
+    }
+
+private:
+    MaNGOS::Thread* serverThread;
 };
 
-#define sMaster MaNGOS::Singleton<Master>::Instance()
+#define sTestEngine MaNGOS::Singleton<TestEngine>::Instance()
 #endif
-/// @}

@@ -31,7 +31,6 @@ project(CMaNGOS_TBC)
 set(CMANGOS_BINARY_SERVER_NAME "mangosd")
 set(CMANGOS_BINARY_REALMD_NAME "realmd")
 set(CMANGOS_BINARY_TESTING_NAME "testing")
-set(CMANGOS_BINARY_ANTICHEAT_NAME "anticheat")
 
 # Function to remove duplicate entries in provided string
 function(RemoveDuplicateSubstring stringIn stringOut)
@@ -207,10 +206,6 @@ if (POLICY CMP0074)
 endif()
 
 set(BOOST_COMPONENTS system program_options thread regex)
-
-if (BUILD_TESTING)
-  set(BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)
-endif()
 
 # Find needed packages and if necessery abort if something important is missing
 find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})

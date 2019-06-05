@@ -1,46 +1,25 @@
-#define BOOST_TEST_MODULE PlayerIntegrationTests
-#include <boost/test/unit_test.hpp>
-#include <iostream>
+/*
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+#include <catch2/catch.hpp>
 
 #include "Entities/Player.h"
 #include "Server/WorldSession.h"
-#include "TestEngine.h"
 
-TestEngine* engine = new TestEngine();
-
-struct MyGlobalFixture {
-    MyGlobalFixture() {
-        std::cout << "ctor fixture i=" << i << std::endl;
-    }
-    void setup() {
-        std::cout << "setup fixture i=" << i << std::endl;
-        i++;
-    }
-    void teardown() {
-        std::cout << "teardown fixture i=" << i << std::endl;
-        i += 2;
-    }
-    ~MyGlobalFixture() {
-        std::cout << "dtor fixture i=" << i << std::endl;
-    }
-    static int i;
-};
-int MyGlobalFixture::i = 0;
-
-BOOST_TEST_GLOBAL_FIXTURE(MyGlobalFixture);
-
-BOOST_AUTO_TEST_SUITE(test_suite1)
-
-BOOST_AUTO_TEST_CASE(test_case1)
-{
-    std::cout << ("running test_case1") << std::endl;
-    BOOST_TEST(MyGlobalFixture::i == 1);
+TEST_CASE("Factorial of 0 is 1 (fail)", "[player]") {
+    REQUIRE(true);
 }
-
-BOOST_AUTO_TEST_CASE(test_case2)
-{
-    std::cout << ("running test_case2") << std::endl;
-    BOOST_TEST(MyGlobalFixture::i == 3);
-}
-
-BOOST_AUTO_TEST_SUITE_END()
