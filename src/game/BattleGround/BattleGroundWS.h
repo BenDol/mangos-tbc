@@ -20,7 +20,6 @@
 #define __BATTLEGROUNDWS_H
 
 #include "BattleGround.h"
-#include "Tools/Language.h"
 
 #define BG_WS_MAX_TEAM_SCORE      3
 #define BG_WS_FLAG_RESPAWN_TIME   (23*IN_MILLISECONDS)
@@ -111,89 +110,6 @@ enum BG_WS_Events
     WS_EVENT_SPIRITGUIDES_SPAWN   = 2
 };
 
-static const uint32 wsFlagIds[PVP_TEAM_COUNT] = { 
-    5912, // TEAM_INDEX_ALLIANCE
-    5913  // TEAM_INDEX_HORDE
-};
-
-static const int32 wsMessageIds[PVP_TEAM_COUNT][WS_FLAG_ACTIONS_TOTAL] = {
-    // TEAM_INDEX_ALLIANCE
-    { 
-        LANG_BG_WS_PICKEDUP_AF,            // BG_WS_FLAG_ACTION_PICKEDUP
-        LANG_BG_WS_RETURNED_AF,            // BG_WS_FLAG_ACTION_RETURNED
-        LANG_BG_WS_DROPPED_AF,             // BG_WS_FLAG_ACTION_DROPPED
-        LANG_BG_WS_CAPTURED_AF,            // BG_WS_FLAG_ACTION_CAPTURED
-        LANG_BG_WS_ALLIANCE_FLAG_RESPAWNED // BG_WS_FLAG_ACTION_RESPAWN
-    },
-    // TEAM_INDEX_HORDE
-    { 
-        LANG_BG_WS_PICKEDUP_HF,            // BG_WS_FLAG_ACTION_PICKEDUP
-        LANG_BG_WS_RETURNED_HF,            // BG_WS_FLAG_ACTION_RETURNED
-        LANG_BG_WS_DROPPED_HF,             // BG_WS_FLAG_ACTION_DROPPED
-        LANG_BG_WS_CAPTURED_HF,            // BG_WS_FLAG_ACTION_CAPTURED
-        LANG_BG_WS_HORDE_FLAG_RESPAWNED    // BG_WS_FLAG_ACTION_RESPAWN
-    }
-};
-
-static const ChatMsg wsChatMessageTypes[PVP_TEAM_COUNT][WS_FLAG_ACTIONS_TOTAL] =
-{
-    // TEAM_INDEX_ALLIANCE
-    {
-        CHAT_MSG_BG_SYSTEM_ALLIANCE, // BG_WS_FLAG_ACTION_PICKEDUP
-        CHAT_MSG_BG_SYSTEM_ALLIANCE, // BG_WS_FLAG_ACTION_RETURNED
-        CHAT_MSG_BG_SYSTEM_ALLIANCE, // BG_WS_FLAG_ACTION_DROPPED
-        CHAT_MSG_BG_SYSTEM_ALLIANCE, // BG_WS_FLAG_ACTION_CAPTURED
-        CHAT_MSG_BG_SYSTEM_NEUTRAL   // BG_WS_FLAG_ACTION_RESPAWN
-    },
-    // TEAM_INDEX_HORDE
-    {
-        CHAT_MSG_BG_SYSTEM_HORDE,    // BG_WS_FLAG_ACTION_PICKEDUP
-        CHAT_MSG_BG_SYSTEM_HORDE,    // BG_WS_FLAG_ACTION_RETURNED
-        CHAT_MSG_BG_SYSTEM_HORDE,    // BG_WS_FLAG_ACTION_DROPPED
-        CHAT_MSG_BG_SYSTEM_HORDE,    // BG_WS_FLAG_ACTION_CAPTURED
-        CHAT_MSG_BG_SYSTEM_NEUTRAL   // BG_WS_FLAG_ACTION_RESPAWN
-    }
-};
-
-static const int32 wsSounds[PVP_TEAM_COUNT][WS_FLAG_ACTIONS_TOTAL] =
-{
-    // TEAM_INDEX_ALLIANCE
-    {
-        BG_WS_SOUND_ALLIANCE_FLAG_PICKED_UP, // BG_WS_FLAG_ACTION_PICKEDUP
-        BG_WS_SOUND_FLAG_RETURNED,           // BG_WS_FLAG_ACTION_RETURNED
-        //BG_WS_SOUND_FLAG_RETURNED,         // BG_WS_FLAG_ACTION_DROPPED
-        BG_WS_SOUND_FLAG_CAPTURED_ALLIANCE,  // BG_WS_FLAG_ACTION_CAPTURED
-        BG_WS_SOUND_FLAGS_RESPAWNED          // BG_WS_FLAG_ACTION_RESPAWN
-    },
-    // TEAM_INDEX_HORDE
-    {
-        BG_WS_SOUND_HORDE_FLAG_PICKED_UP,    // BG_WS_FLAG_ACTION_PICKEDUP
-        BG_WS_SOUND_FLAG_RETURNED,           // BG_WS_FLAG_ACTION_RETURNED
-        //BG_WS_SOUND_FLAG_RETURNED,         // BG_WS_FLAG_ACTION_DROPPED
-        BG_WS_SOUND_FLAG_CAPTURED_HORDE,     // BG_WS_FLAG_ACTION_CAPTURED
-        BG_WS_SOUND_FLAGS_RESPAWNED          // BG_WS_FLAG_ACTION_RESPAWN
-    }
-};
-static const int32 wsSpellTypes[PVP_TEAM_COUNT][WS_FLAG_ACTIONS_TOTAL] =
-{
-    // TEAM_INDEX_ALLIANCE
-    {
-        BG_WS_SPELL_SILVERWING_FLAG,         // BG_WS_FLAG_ACTION_PICKEDUP
-        BG_WS_SPELL_SILVERWING_FLAG,         // BG_WS_FLAG_ACTION_RETURNED
-        BG_WS_SPELL_SILVERWING_FLAG_DROPPED, // BG_WS_FLAG_ACTION_DROPPED
-        //BG_WS_SPELL_SILVERWING_FLAG,       // BG_WS_FLAG_ACTION_CAPTURED
-        //BG_WS_SPELL_SILVERWING_FLAG        // BG_WS_FLAG_ACTION_RESPAWN
-    },
-    // TEAM_INDEX_HORDE
-    {
-        BG_WS_SPELL_WARSONG_FLAG,            // BG_WS_FLAG_ACTION_PICKEDUP
-        BG_WS_SPELL_WARSONG_FLAG,            // BG_WS_FLAG_ACTION_RETURNED
-        BG_WS_SPELL_WARSONG_FLAG_DROPPED,    // BG_WS_FLAG_ACTION_DROPPED
-        //BG_WS_SPELL_WARSONG_FLAG,          // BG_WS_FLAG_ACTION_CAPTURED
-        //BG_WS_SPELL_WARSONG_FLAG           // BG_WS_FLAG_ACTION_RESPAWN
-    }
-};
-
 class BattleGroundWS : public BattleGround
 {
     friend class BattleGroundMgr;
@@ -222,7 +138,7 @@ class BattleGroundWS : public BattleGround
         void RespawnFlag(Team team, bool captured);
         void RespawnDroppedFlag(Team team);
         uint8 GetFlagState(Team team) { return m_FlagState[GetTeamIndexByTeamId(team)]; }
-        uint32 GetWorldStateUpdateId(uint8 teamIdx);
+        uint32 GetWorldStateUpdateId(uint8 teamIdx) const;
 
         /* Battleground Events */
         virtual void EventPlayerDroppedFlag(Player* source) override;
@@ -237,7 +153,7 @@ class BattleGroundWS : public BattleGround
         virtual WorldSafeLocsEntry const* GetClosestGraveYard(Player* player) override;
 
         // Flag interactions
-        void PickUpFlagFromBase(Player* source, GameObject* target);
+        void PickUpFlagFromBase(Player* source);
         uint32 GroundFlagInteraction(Player* source, GameObject* target);
 
         void UpdateFlagState(Team team, uint32 value);
