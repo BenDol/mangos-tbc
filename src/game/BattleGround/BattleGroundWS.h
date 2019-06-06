@@ -126,14 +126,8 @@ class BattleGroundWS : public BattleGround
         /* BG Flags */
         ObjectGuid GetFlagCarrierGuid(uint8 teamIdx) const { return m_FlagCarrier[teamIdx]; }
         void SetFlagCarrier(uint8 teamIdx, ObjectGuid guid) { m_FlagCarrier[teamIdx] = guid; }
-
         void ClearFlagCarrier(uint8 teamIdx) { m_FlagCarrier[teamIdx].Clear(); }
-        void ClearAllianceFlagCarrier() { m_FlagCarrier[TEAM_INDEX_ALLIANCE].Clear(); }
-        void ClearHordeFlagCarrier() { m_FlagCarrier[TEAM_INDEX_HORDE].Clear(); }
-
         bool IsFlagPickedUp(uint8 teamIdx) const { return !m_FlagCarrier[teamIdx].IsEmpty(); }
-        bool IsAllianceFlagPickedUp() const { return !m_FlagCarrier[TEAM_INDEX_ALLIANCE].IsEmpty(); }
-        bool IsHordeFlagPickedUp() const { return !m_FlagCarrier[TEAM_INDEX_HORDE].IsEmpty(); }
 
         void RespawnFlag(Team team, bool captured);
         void RespawnDroppedFlag(Team team);
