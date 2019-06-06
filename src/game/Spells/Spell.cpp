@@ -3512,9 +3512,7 @@ void Spell::_handle_immediate_phase()
 
         // apply Send Event effect to ground in case empty target lists
         if (m_spellInfo->Effect[j] == SPELL_EFFECT_SEND_EVENT && !HaveTargetsForEffect(SpellEffectIndex(j)))
-        {
             HandleEffects(nullptr, nullptr, nullptr, SpellEffectIndex(j));
-        }
     }
 
     // initialize Diminishing Returns Data
@@ -3580,7 +3578,7 @@ void Spell::update(uint32 difftime)
     }
 
     // check if the player or unit caster has moved before the spell finished (exclude casting on vehicles)
-    if (((m_caster->GetTypeId() == TYPEID_PLAYER || m_caster->GetTypeId() == TYPEID_UNIT) && m_timer != 0) &&
+    if (((m_caster->GetTypeId() == TYPEID_PLAYER || m_caster->IsCreature()) && m_timer != 0) &&
             (m_castPositionX != m_caster->GetPositionX() || m_castPositionY != m_caster->GetPositionY() || m_castPositionZ != m_caster->GetPositionZ()) &&
             (m_spellInfo->Effect[EFFECT_INDEX_0] != SPELL_EFFECT_STUCK || !m_caster->m_movementInfo.HasMovementFlag(MOVEFLAG_FALLINGFAR)))
     {
@@ -4581,32 +4579,32 @@ Unit* Spell::GetPrefilledUnitTargetOrUnitTarget(SpellEffectIndex effIndex) const
 SpellCastResult Spell::CheckCast(bool strict)
 {
     // check cooldowns to prevent cheating (ignore passive spells, that client side visual only)
-    if (m_caster->GetTypeId() == TYPEID_PLAYER && !m_spellInfo->HasAttribute(SPELL_ATTR_PASSIVE) &&
+    if (m_caster->IsPlayer() && !m_spellInfo->HasAttribute(SPELL_ATTR_PASSIVE) &&
             !m_IsTriggeredSpell && !m_caster->IsSpellReady(*m_spellInfo, m_CastItem ? m_CastItem->GetProto() : nullptr))
     {
-        if (m_triggeredByAuraSpell)
-            return SPELL_FAILED_DONT_REPORT;
-        return SPELL_FAILED_NOT_READY;
+        return m_triggeredByAuraSpell ? SPELL_FAILED_DONT_REPORT : SPELL_FAILED_NOT_READY;
     }
 
-    if (!m_caster->isAlive() && m_caster->GetTypeId() == TYPEID_PLAYER && !m_spellInfo->HasAttribute(SPELL_ATTR_CASTABLE_WHILE_DEAD) && !m_spellInfo->HasAttribute(SPELL_ATTR_PASSIVE))
+    if (!m_caster->isAlive() && m_caster->IsPlayer() && !m_spellInfo->HasAttribute(SPELL_ATTR_CASTABLE_WHILE_DEAD) && !m_spellInfo->HasAttribute(SPELL_ATTR_PASSIVE))
         return SPELL_FAILED_CASTER_DEAD;
+
+    if (!m_caster->IsStandState() && !m_spellInfo->HasAttribute(SPELL_ATTR_CASTABLE_WHILE_SITTING))
+        return SPELL_FAILED_NOT_STANDING;
 
     // check global cooldown
     if (strict && !m_IsTriggeredSpell && m_caster->HasGCD(m_spellInfo))
         return SPELL_FAILED_NOT_READY;
 
     // only allow triggered spells if at an ended battleground
-    if (!m_IsTriggeredSpell && m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (!m_IsTriggeredSpell && m_caster->IsPlayer())
         if (BattleGround* bg = ((Player*)m_caster)->GetBattleGround())
             if (bg->GetStatus() == STATUS_WAIT_LEAVE)
                 return SPELL_FAILED_DONT_REPORT;
 
-    if (!m_IsTriggeredSpell && IsNonCombatSpell(m_spellInfo) &&
-            m_caster->isInCombat())
+    if (!m_IsTriggeredSpell && IsNonCombatSpell(m_spellInfo) && m_caster->isInCombat())
         return SPELL_FAILED_AFFECTING_COMBAT;
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER && !((Player*)m_caster)->isGameMaster() &&
+    if (m_caster->IsPlayer() && !((Player*)m_caster)->isGameMaster() &&
             sWorld.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK) &&
             VMAP::VMapFactory::createOrGetVMapManager()->isLineOfSightCalcEnabled())
     {
@@ -4639,7 +4637,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     if (m_spellInfo->CasterAuraStateNot && m_caster->HasAuraState(AuraState(m_spellInfo->CasterAuraStateNot)))
         return SPELL_FAILED_CASTER_AURASTATE;
 
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
+    if (m_caster->IsPlayer())
     {
         // cancel autorepeat spells if cast start when moving
         // (not wand currently autorepeat cast delayed to moving stop anyway in spell update code)
@@ -4667,9 +4665,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     for (Unit::AuraList::const_iterator itr = auraClassScripts.begin(); itr != auraClassScripts.end();)
                     {
                         if ((*itr)->GetModifier()->m_miscvalue == 3655)
-                        {
                             return SPELL_FAILED_TARGET_AURASTATE;
-                        }
                         else
                             ++itr;
                     }
@@ -4687,9 +4683,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     for (Unit::AuraList::const_iterator itr = auraClassScripts.begin(); itr != auraClassScripts.end();)
                     {
                         if ((*itr)->GetModifier()->m_miscvalue == 4327)
-                        {
                             return SPELL_FAILED_FIZZLE;
-                        }
                         else
                             ++itr;
                     }
@@ -4704,9 +4698,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     for (Unit::AuraList::const_iterator itr = auraClassScripts.begin(); itr != auraClassScripts.end();)
                     {
                         if ((*itr)->GetModifier()->m_miscvalue == 3654)
-                        {
                             return SPELL_FAILED_TARGET_AURASTATE;
-                        }
                         else
                             ++itr;
                     }
