@@ -5862,17 +5862,12 @@ void Unit::CasterHitTargetWithSpell(Unit* realCaster, Unit* target, SpellEntry c
 
         // we want to change the stand state of each character if possible/required
          // Since patch 1.5.0 sitting creature always stand up on attack (even if stunned)
-        if (success)
-        {
-            if (!spellInfo->HasAttribute(SPELL_ATTR_CASTABLE_WHILE_SITTING) && !realCaster->IsStandState())
-                realCaster->SetStandState(UNIT_STAND_STATE_STAND);
-
-            if (!target->IsStandState())
-                target->SetStandState(UNIT_STAND_STATE_STAND);
-        }
+        if (success && !target->IsStandState())
+            target->SetStandState(UNIT_STAND_STATE_STAND);
 
         // Hostile spell hits count as attack made against target (if detected), stealth removed at Spell::cast if spell break it
-        const bool attack = (!IsPositiveSpell(spellInfo->Id, realCaster, target) && IsVisibleForOrDetect(target, target, false) && CanEnterCombat() && target->CanEnterCombat());
+        const bool attack = (!IsPositiveSpell(spellInfo->Id, realCaster, target) 
+            && IsVisibleForOrDetect(target, target, false) && CanEnterCombat() && target->CanEnterCombat());
 
         if (attack && !spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) && !spellInfo->HasAttribute(SPELL_ATTR_EX_NO_THREAT))
         {
@@ -5901,7 +5896,8 @@ void Unit::CasterHitTargetWithSpell(Unit* realCaster, Unit* target, SpellEntry c
     else if (realCaster->CanAssist(target) && target->isInCombat())
     {
         // assisting case, healing and resurrection
-        if (!spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) && !spellInfo->HasAttribute(SPELL_ATTR_EX_NO_THREAT) && CanEnterCombat() && target->CanEnterCombat())
+        if (!spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) && 
+            !spellInfo->HasAttribute(SPELL_ATTR_EX_NO_THREAT) && CanEnterCombat() && target->CanEnterCombat())
         {
             realCaster->SetInCombatWithAssisted(target);
             target->getHostileRefManager().threatAssist(realCaster, 0.0f, spellInfo, false);
@@ -5998,7 +5994,8 @@ void Unit::SendAttackStateUpdate(CalcDamageInfo* calcDamageInfo) const
     SendMessageToSet(data, true);
 }
 
-void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, int32 Resist, VictimState TargetState, uint32 BlockedAmount)
+void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, SpellSchoolMask damageSchoolMask, uint32 Damage, 
+                                 uint32 AbsorbDamage, int32 Resist, VictimState TargetState, uint32 BlockedAmount)
 {
     CalcDamageInfo dmgInfo;
     dmgInfo.HitInfo = HitInfo;
@@ -6066,7 +6063,8 @@ FactionTemplateEntry const* Unit::GetFactionTemplateEntry() const
             guid = GetObjectGuid();
 
             if (guid.GetHigh() == HIGHGUID_PET)
-                sLog.outError("%s (base creature entry %u) have invalid faction template id %u, owner %s", GetGuidStr().c_str(), GetEntry(), getFaction(), ((Pet*)this)->GetOwnerGuid().GetString().c_str());
+                sLog.outError("%s (base creature entry %u) have invalid faction template id %u, owner %s", 
+                    GetGuidStr().c_str(), GetEntry(), getFaction(), ((Pet*)this)->GetOwnerGuid().GetString().c_str());
             else
                 sLog.outError("%s have invalid faction template id %u", GetGuidStr().c_str(), getFaction());
         }
@@ -6186,7 +6184,7 @@ bool Unit::AttackStop(bool targetSwitch /*= false*/, bool includingCast /*= fals
         InterruptNonMeleeSpells(false);
 
     // Clear our target only if targetSwitch == true
-    if (targetSwitch && GetTypeId() != TYPEID_PLAYER)
+    if (targetSwitch && IsPlayer())
         SetTargetGuid(ObjectGuid());
 
     MeleeAttackStop(m_attacking);
@@ -6202,14 +6200,14 @@ bool Unit::AttackStop(bool targetSwitch /*= false*/, bool includingCast /*= fals
 
 void Unit::CombatStop(bool includingCast, bool includingCombo)
 {
-    if (GetTypeId() == TYPEID_PLAYER)
+    if (IsPlayer())
         ((Player*)this)->SendAttackSwingCancelAttack();     // melee and ranged forced attack cancel
 
     AttackStop(true, includingCast, includingCombo);
     RemoveAllAttackers();
     DeleteThreatList();
 
-    if (GetTypeId() != TYPEID_PLAYER)
+    if (IsPlayer())
     {
         ((Creature*)this)->SetNoCallAssistance(false);
 
@@ -6364,8 +6362,8 @@ Player* Unit::GetBeneficiaryPlayer() const
 {
     Unit const* beneficiary = GetBeneficiary();
     if (beneficiary)
-        return (beneficiary->GetTypeId() == TYPEID_PLAYER ? const_cast<Player*>(static_cast<Player const*>(beneficiary)) : nullptr);
-    return (GetTypeId() == TYPEID_PLAYER ? const_cast<Player*>(static_cast<Player const*>(this)) : nullptr);
+        return (beneficiary->IsPlayer() ? const_cast<Player*>(static_cast<Player const*>(beneficiary)) : nullptr);
+    return (IsPlayer() ? const_cast<Player*>(static_cast<Player const*>(this)) : nullptr);
 }
 
 bool Unit::IsClientControlled(Player const* exactClient /*= nullptr*/) const
@@ -6390,7 +6388,7 @@ bool Unit::IsClientControlled(Player const* exactClient /*= nullptr*/) const
     }
 
     // By default: players have client control over themselves
-    if (GetTypeId() == TYPEID_PLAYER)
+    if (IsPlayer())
         return (exactClient ? (exactClient == this) : true);
     return false;
 }
