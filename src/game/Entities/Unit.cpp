@@ -326,6 +326,7 @@ Unit::Unit() :
         m_currentSpell = nullptr;
 
     m_castCounter = 0;
+    m_nextCastingSpell = nullptr;
 
     // m_Aura = nullptr;
     // m_AurasCheck = 2000;
@@ -420,6 +421,9 @@ Unit::~Unit()
             m_currentSpell = nullptr;
         }
     }
+
+    if (m_nextCastingSpell)
+        delete m_nextCastingSpell;
 
     CleanupDeletedAuras();
 
@@ -4128,6 +4132,8 @@ void Unit::_UpdateAutoRepeatSpell()
         // cancel wand shoot
         if (m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_spellInfo->Category == 351)
             InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
+        else if (getAttackTimer(RANGED_ATTACK) < 500)
+            setAttackTimer(RANGED_ATTACK, 500);
         return;
     }
 

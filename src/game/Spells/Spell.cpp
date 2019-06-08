@@ -3053,17 +3053,9 @@ SpellCastResult Spell::SpellStart(SpellCastTargets const* targets, Aura* trigger
     if (triggeredByAura)
         m_triggeredByAuraSpell = triggeredByAura->GetSpellProto();
 
-    // create and add update event for this spell
+    // Create and add update event for this spell
     SpellEvent* Event = new SpellEvent(this);
     m_caster->m_events.AddEvent(Event, m_caster->m_events.CalculateTime(1));
-
-    // Prevent casting at cast another spell (ServerSide check)
-    if (m_caster->IsNonMeleeSpellCasted(false, true, true) && m_cast_count && !m_spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING))
-    {
-        SendCastResult(SPELL_FAILED_SPELL_IN_PROGRESS);
-        finish(false);
-        return SPELL_FAILED_SPELL_IN_PROGRESS;
-    }
 
     // Fill cost data
     m_powerCost = m_IsTriggeredSpell ? 0 : CalculatePowerCost(m_spellInfo, m_caster, this, m_CastItem);
@@ -3148,6 +3140,9 @@ void Spell::cancel()
     if (m_spellState == SPELL_STATE_FINISHED)
         return;
 
+    // cancel the next spell cast too
+    m_caster->SetNextCastingSpell(nullptr);
+
     // channeled spells don't display interrupted message even if they are interrupted, possible other cases with no "Interrupted" message
     bool sendInterrupt = !(IsChanneledSpell(m_spellInfo) || m_autoRepeat);
 
@@ -3194,10 +3189,6 @@ void Spell::cancel()
         case SPELL_STATE_FINISHED: break; // should not occur
     }
 
-    // Interrupt pending steady shot if auto shot was cancelled
-    if (m_spellInfo->Id == 75 && m_caster->IsPlayer() && ((Player*)m_caster)->IsPendingSteadyShot())
-        ((Player*)m_caster)->SetPendingSteadyShot(false);
-
     finish(false);
     m_caster->RemoveDynObject(m_spellInfo->Id);
     m_caster->RemoveGameObject(m_spellInfo->Id, true);
@@ -3219,7 +3210,7 @@ void Spell::cast(bool skipCheck)
 
         SendCastResult(SPELL_FAILED_ERROR);
         finish(false);
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3231,7 +3222,7 @@ void Spell::cast(bool skipCheck)
     {
         cancel();
         m_caster->DecreaseCastCounter();
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3363,21 +3354,6 @@ void Spell::cast(bool skipCheck)
             }
             break;
         }
-        case SPELLFAMILY_WARLOCK:
-        {
-            // Create Healthstone
-            if (m_spellInfo->Id == 27230 || m_spellInfo->Id == 11730 || m_spellInfo->Id == 11729 
-                || m_spellInfo->Id == 6202 || m_spellInfo->Id == 6201 || m_spellInfo->Id == 5699)
-            {
-                // check if we already have a healthstone
-                uint32 itemType = GetUsableHealthStoneItemType(m_caster);
-                if (itemType && m_caster->IsPlayer() && ((Player*)m_caster)->GetItemCount(itemType) > 0)
-                {
-                    StopCast(castResult);
-                }
-            }
-            break;
-        }
         default:
             break;
     }
@@ -3391,7 +3367,7 @@ void Spell::cast(bool skipCheck)
     if (m_spellState == SPELL_STATE_FINISHED)               // stop cast if spell marked as finish somewhere in FillTargetMap
     {
         m_caster->DecreaseCastCounter();
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3436,18 +3412,7 @@ void Spell::cast(bool skipCheck)
     }
 
     m_caster->DecreaseCastCounter();
-    SetExecutedCurrently(false);
-
-    // Auto shot: We need to start steady shot if it was started within 500 ms
-    // (the "load gun" phase) of auto shot
-    if (m_spellInfo->Id == 75 && m_caster->IsPlayer() && ((Player*)m_caster)->IsPendingSteadyShot())
-    {
-        Unit* target = m_targets.getUnitTarget();
-        if (target && target->isAlive())
-            m_caster->CastSpell(target, 34120, TRIGGERED_IGNORE_GCD);
-
-        ((Player*)m_caster)->SetPendingSteadyShot(false);
-    }
+    executed();
 }
 
 void Spell::handle_immediate()
@@ -3867,6 +3832,28 @@ void Spell::finish(bool ok)
         Map* map = m_caster->GetMap();
         if (map->IsDungeon())
             ((DungeonMap*)map)->GetPersistanceState()->UpdateEncounterState(ENCOUNTER_CREDIT_CAST_SPELL, m_spellInfo->Id);
+    }
+}
+
+void Spell::executed()
+{
+    SetExecutedCurrently(false);
+
+    // check if there is a next cast spell to start
+    NextCastingSpell* nextSpell = m_caster->GetNextCastingSpell();
+    if (nextSpell)
+    {
+        if (nextSpell->spellInfo)
+        {
+            SpellCastTargets targets = nextSpell->targets;
+            targets.Update(m_caster);
+
+            Spell* spell = new Spell(m_caster, nextSpell->spellInfo, TRIGGERED_IGNORE_GCD);
+            spell->m_cast_count = nextSpell->cast_count;
+            spell->SpellStart(&targets);
+        }
+
+        m_caster->SetNextCastingSpell(nullptr);
     }
 }
 
@@ -5983,18 +5970,6 @@ SpellCastResult Spell::CheckCast(bool strict)
                 return SPELL_FAILED_TOO_MANY_OF_ITEM;
             break;
         }
-        case 34120:
-            // If auto shot is currently in its prepare fire stage, we need to delay
-            // steady shot, but still consume GCD
-            if (!m_ignoreGCD && m_caster->IsPlayer() && m_caster->getAttackTimer(RANGED_ATTACK) <= 500)
-            {
-                // Prepare a steady shot that will be executed without GCD when auto
-                // shot finishes.
-                ((Player*)m_caster)->SetPendingSteadyShot(true);
-                m_caster->AddGCD(*m_spellInfo);
-                return SPELL_FAILED_DONT_REPORT;
-            }
-            break;
     }
 
     if (m_caster->GetTypeId() == TYPEID_PLAYER && m_spellInfo->HasAttribute(SPELL_ATTR_EX2_TAME_BEAST))
@@ -7893,5 +7868,5 @@ void Spell::StopCast(SpellCastResult castResult)
     SendInterrupted(castResult);
     finish(false);
     m_caster->DecreaseCastCounter();
-    SetExecutedCurrently(false);
+    executed();
 }

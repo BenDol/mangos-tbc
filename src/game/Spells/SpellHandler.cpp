@@ -370,14 +370,31 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
     // auto-selection buff level base at target level (in spellInfo)
     if (Unit* target = targets.getUnitTarget())
     {
-        // if rank not found then function return nullptr but in explicit cast case original spell can be casted and later failed with appropriate error message
+        // if rank not found then function return nullptr but in explicit cast case 
+        // original spell can be casted and later failed with appropriate error message
         if (SpellEntry const* actualSpellInfo = sSpellMgr.SelectAuraRankForLevel(spellInfo, target->getLevel()))
             spellInfo = actualSpellInfo;
     }
 
-    Spell* spell = new Spell(mover, spellInfo, false);
-    spell->m_cast_count = cast_count;                       // set count of casts
-    spell->SpellStart(&targets);
+    // Prevent casting and handle the next spell queuing if able
+    if (cast_count && mover->IsNonMeleeSpellCasted(false, true, true) && !spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING))
+    {
+        const Spell* currentSpell = mover->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+
+        if (currentSpell && currentSpell->GetCastedTime() <= 500 && !mover->GetNextCastingSpell())
+        {
+            mover->SetNextCastingSpell(new NextCastingSpell(spellInfo, &targets, cast_count));
+            mover->AddGCD(*spellInfo);
+        }
+        else if (mover->IsPlayer())
+            Spell::SendCastResult((Player*)mover, spellInfo, cast_count, SPELL_FAILED_SPELL_IN_PROGRESS);
+    }
+    else
+    {
+        Spell* spell = new Spell(mover, spellInfo, false);
+        spell->m_cast_count = cast_count; // set count of casts
+        spell->SpellStart(&targets);
+    }
 }
 
 void WorldSession::HandleCancelCastOpcode(WorldPacket& recvPacket)
