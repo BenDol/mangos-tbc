@@ -381,7 +381,7 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
     {
         const Spell* currentSpell = mover->GetCurrentSpell(CURRENT_GENERIC_SPELL);
 
-        if (currentSpell && currentSpell->GetCastedTime() <= 500)
+        if (currentSpell && currentSpell->GetCastedTime() <= 500 && !mover->GetNextCastingSpell())
         {
             mover->SetNextCastingSpell(new NextCastingSpell(spellInfo, &targets, cast_count));
             mover->AddGCD(*spellInfo);
