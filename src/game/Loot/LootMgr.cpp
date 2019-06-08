@@ -1262,6 +1262,7 @@ bool Loot::Release(Player* player)
         }
         case HIGHGUID_ITEM:
         {
+            ForceLootAnimationClientUpdate();
             switch (m_lootType)
             {
                 // temporary loot in stacking items, clear loot state, no auto loot move
@@ -1276,7 +1277,6 @@ bool Loot::Release(Player* player)
                     // reset loot for allow repeat looting if stack > 5
                     Clear();
                     m_itemTarget->SetLootState(ITEM_LOOT_REMOVED);
-
                     player->DestroyItemCount(m_itemTarget, count, true);
                     break;
                 }
@@ -1302,7 +1302,9 @@ bool Loot::Release(Player* player)
                     break;
                 }
             }
-            return false; // item can be looted only single player
+            //already done above
+            updateClients = false;
+            break;
         }
         case HIGHGUID_UNIT:
         {
@@ -1376,8 +1378,6 @@ bool Loot::Release(Player* player)
 
     if (updateClients)
         ForceLootAnimationClientUpdate();
-
-    return true;
 }
 
 // Popup windows with loot content
@@ -2189,7 +2189,14 @@ void Loot::SendGold(Player* player)
     }
     m_gold = 0;
 
-    if (!IsLootedFor(player) || Release(player))
+    // animation update is done in Release if needed.
+    if (IsLootedFor(player))
+    {
+        Release(player);
+        // Be aware that in case of items that contain loot this class may be freed.
+        // All pointers may be invalid due to Player::DestroyItem call.
+    }
+    else
         ForceLootAnimationClientUpdate();
 }
 
