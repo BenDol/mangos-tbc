@@ -496,6 +496,7 @@ class Spell
         bool m_doNotProc;
         bool m_petCast;
         bool m_notifyAI;
+        bool m_ignoreGCD;
 
         int32 GetCastTime() const { return m_casttime; }
         uint32 GetCastedTime() const { return m_timer; }

@@ -335,6 +335,7 @@ enum TriggerCastFlags : uint32
     TRIGGERED_DO_NOT_PROC                       = 0x00000040,   // Spells from scripts should not proc - DBScripts for example
     TRIGGERED_PET_CAST                          = 0x00000080,   // Spell that should report error through pet opcode
     TRIGGERED_NORMAL_COMBAT_CAST                = 0x00000100,   // AI needs to be notified about change of target
+    TRIGGERED_IGNORE_GCD                        = 0x00000200,   // Ignores the GCD checks and do not apply GCD
     TRIGGERED_FULL_MASK                         = 0xFFFFFFFF
 };
 

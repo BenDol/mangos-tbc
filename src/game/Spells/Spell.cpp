@@ -383,6 +383,7 @@ Spell::Spell(Unit* caster, SpellEntry const* info, uint32 triggeredFlags, Object
     m_doNotProc = (triggeredFlags & TRIGGERED_DO_NOT_PROC) != 0;
     m_petCast = (triggeredFlags & TRIGGERED_PET_CAST) != 0;
     m_notifyAI = (triggeredFlags & TRIGGERED_NORMAL_COMBAT_CAST) != 0;
+    m_ignoreGCD = (triggeredFlags & TRIGGERED_IGNORE_GCD) != 0;
 
     m_reflectable = IsReflectableSpell(m_spellInfo);
 
@@ -3108,8 +3109,11 @@ void Spell::Prepare()
         // will show cast bar
         SendSpellStart();
 
-        // add gcd server side (client side is handled by client itself)
-        m_caster->AddGCD(*m_spellInfo);
+        if (!m_ignoreGCD)
+        {
+            // add gcd server side (client side is handled by client itself)
+            m_caster->AddGCD(*m_spellInfo);
+        }
 
         // Execute instant spells immediate
         if (m_timer == 0 && !IsNextMeleeSwingSpell() && (!IsAutoRepeat() || m_triggerAutorepeat))
@@ -3845,7 +3849,7 @@ void Spell::executed()
             SpellCastTargets targets = nextSpell->targets;
             targets.Update(m_caster);
 
-            Spell* spell = new Spell(m_caster, nextSpell->spellInfo, false);
+            Spell* spell = new Spell(m_caster, nextSpell->spellInfo, TRIGGERED_IGNORE_GCD);
             spell->m_cast_count = nextSpell->cast_count;
             spell->SpellStart(&targets);
         }
@@ -4602,7 +4606,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         return SPELL_FAILED_CASTER_DEAD;
 
     // check global cooldown
-    if (strict && !m_IsTriggeredSpell && m_caster->HasGCD(m_spellInfo))
+    if (strict && !m_ignoreGCD && !m_IsTriggeredSpell && m_caster->HasGCD(m_spellInfo))
         return SPELL_FAILED_NOT_READY;
 
     // only allow triggered spells if at an ended battleground
