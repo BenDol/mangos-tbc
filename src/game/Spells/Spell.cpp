@@ -3052,17 +3052,9 @@ SpellCastResult Spell::SpellStart(SpellCastTargets const* targets, Aura* trigger
     if (triggeredByAura)
         m_triggeredByAuraSpell = triggeredByAura->GetSpellProto();
 
-    // create and add update event for this spell
+    // Create and add update event for this spell
     SpellEvent* Event = new SpellEvent(this);
     m_caster->m_events.AddEvent(Event, m_caster->m_events.CalculateTime(1));
-
-    // Prevent casting at cast another spell (ServerSide check)
-    if (m_caster->IsNonMeleeSpellCasted(false, true, true) && m_cast_count && !m_spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING))
-    {
-        SendCastResult(SPELL_FAILED_SPELL_IN_PROGRESS);
-        finish(false);
-        return SPELL_FAILED_SPELL_IN_PROGRESS;
-    }
 
     // Fill cost data
     m_powerCost = m_IsTriggeredSpell ? 0 : CalculatePowerCost(m_spellInfo, m_caster, this, m_CastItem);
@@ -3143,6 +3135,9 @@ void Spell::cancel()
     if (m_spellState == SPELL_STATE_FINISHED)
         return;
 
+    // cancel the next spell cast too
+    m_caster->SetNextCastingSpell(nullptr);
+
     // channeled spells don't display interrupted message even if they are interrupted, possible other cases with no "Interrupted" message
     bool sendInterrupt = !(IsChanneledSpell(m_spellInfo) || m_autoRepeat);
 
@@ -3210,7 +3205,7 @@ void Spell::cast(bool skipCheck)
 
         SendCastResult(SPELL_FAILED_ERROR);
         finish(false);
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3222,7 +3217,7 @@ void Spell::cast(bool skipCheck)
     {
         cancel();
         m_caster->DecreaseCastCounter();
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3367,7 +3362,7 @@ void Spell::cast(bool skipCheck)
     if (m_spellState == SPELL_STATE_FINISHED)               // stop cast if spell marked as finish somewhere in FillTargetMap
     {
         m_caster->DecreaseCastCounter();
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3412,7 +3407,7 @@ void Spell::cast(bool skipCheck)
     }
 
     m_caster->DecreaseCastCounter();
-    SetExecutedCurrently(false);
+    executed();
 }
 
 void Spell::handle_immediate()
@@ -3834,6 +3829,27 @@ void Spell::finish(bool ok)
         Map* map = m_caster->GetMap();
         if (map->IsDungeon())
             ((DungeonMap*)map)->GetPersistanceState()->UpdateEncounterState(ENCOUNTER_CREDIT_CAST_SPELL, m_spellInfo->Id);
+    }
+}
+
+void Spell::executed()
+{
+    SetExecutedCurrently(false);
+
+    // check if there is a next cast spell to start
+    NextCastingSpell* nextSpell = m_caster->GetNextCastingSpell();
+    if (nextSpell)
+    {
+        if (nextSpell->spellInfo)
+        {
+            SpellCastTargets targets = nextSpell->targets;
+            targets.Update(m_caster);
+
+            Spell* spell = new Spell(m_caster, nextSpell->spellInfo, false);
+            spell->SpellStart(&targets);
+        }
+
+        m_caster->SetNextCastingSpell(nullptr);
     }
 }
 
@@ -7843,5 +7859,5 @@ void Spell::StopCast(SpellCastResult castResult)
     SendInterrupted(castResult);
     finish(false);
     m_caster->DecreaseCastCounter();
-    SetExecutedCurrently(false);
+    executed();
 }

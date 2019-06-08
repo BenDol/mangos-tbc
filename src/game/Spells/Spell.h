@@ -269,6 +269,16 @@ class SpellLog
         uint32 m_currentEffect;
 };
 
+struct NextCastingSpell
+{
+    explicit NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets const* _targets) : spellInfo(_spellInfo) {
+        targets = *_targets;
+    }
+
+    SpellEntry const* spellInfo;
+    SpellCastTargets targets;
+};
+
 class Spell
 {
         friend struct MaNGOS::SpellNotifierPlayer;
@@ -388,6 +398,7 @@ class Spell
         void update(uint32 difftime);
         void cast(bool skipCheck = false);
         void finish(bool ok = true);
+        void executed();
         void TakePower();
         void TakeAmmo() const;
         void TakeReagents();
@@ -504,8 +515,8 @@ class Spell
         bool IsEffectWithImplementedMultiplier(uint32 effectId) const;
 
         bool IsDeletable() const { return !m_referencedFromCurrentSpell && !m_executedCurrently; }
-        void SetReferencedFromCurrent(bool yes) { m_referencedFromCurrentSpell = yes; }
-        void SetExecutedCurrently(bool yes) { m_executedCurrently = yes; }
+        void SetReferencedFromCurrent(bool referencedFromCurrentSpell) { m_referencedFromCurrentSpell = referencedFromCurrentSpell; }
+        void SetExecutedCurrently(bool executedCurrently) { m_executedCurrently = executedCurrently; }
         bool IsExecutedCurrently() const { return m_executedCurrently; }
         uint64 GetDelayStart() const { return m_delayStart; }
         void SetDelayStart(uint64 m_time) { m_delayStart = m_time; }
