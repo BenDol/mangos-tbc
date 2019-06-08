@@ -271,12 +271,13 @@ class SpellLog
 
 struct NextCastingSpell
 {
-    explicit NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets const* _targets) : spellInfo(_spellInfo) {
-        targets = *_targets;
-    }
+    NextCastingSpell() : spellInfo(nullptr), cast_count(0) {}
+    NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets const* _targets, uint32 _cast_count)
+        : spellInfo(_spellInfo), targets(*_targets), cast_count(_cast_count) {}
 
     SpellEntry const* spellInfo;
     SpellCastTargets targets;
+    uint32 cast_count;
 };
 
 class Spell

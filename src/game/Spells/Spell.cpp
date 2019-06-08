@@ -3846,6 +3846,7 @@ void Spell::executed()
             targets.Update(m_caster);
 
             Spell* spell = new Spell(m_caster, nextSpell->spellInfo, false);
+            spell->m_cast_count = nextSpell->cast_count;
             spell->SpellStart(&targets);
         }
 

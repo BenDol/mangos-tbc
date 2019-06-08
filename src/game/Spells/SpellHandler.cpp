@@ -383,7 +383,11 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         const Spell* currentSpell = mover->GetCurrentSpell(CURRENT_GENERIC_SPELL);
 
         if (currentSpell && currentSpell->GetCastedTime() <= 500)
-            mover->SetNextCastingSpell(new NextCastingSpell(spellInfo, &targets));
+        {
+            mover->SetNextCastingSpell(new NextCastingSpell(spellInfo, &targets, cast_count));
+            if (mover->IsPlayer())
+                Spell::SendCastResult((Player*)mover, spellInfo, cast_count, SPELL_FAILED_SPELL_IN_PROGRESS);
+        }
     }
     else
     {

@@ -326,7 +326,7 @@ Unit::Unit() :
         m_currentSpell = nullptr;
 
     m_castCounter = 0;
-    m_nextCastingSpell = 0;
+    m_nextCastingSpell = nullptr;
 
     // m_Aura = nullptr;
     // m_AurasCheck = 2000;
