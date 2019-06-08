@@ -379,7 +379,6 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
     // Prevent casting and handle the next spell queuing if able
     if (cast_count && mover->IsNonMeleeSpellCasted(false, true, true) && !spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING))
     {
-        SpellCastResult result = SPELL_FAILED_SPELL_IN_PROGRESS;
         const Spell* currentSpell = mover->GetCurrentSpell(CURRENT_GENERIC_SPELL);
 
         if (currentSpell && currentSpell->GetCastedTime() <= 500)
