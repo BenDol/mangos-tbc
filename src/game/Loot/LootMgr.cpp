@@ -1147,7 +1147,7 @@ void Loot::SetPlayerIsNotLooting(Player* player)
     }
 }
 
-bool Loot::Release(Player* player)
+void Loot::Release(Player* player)
 {
     bool updateClients = false;
     if (player->GetObjectGuid() == m_currentLooterGuid)
@@ -1251,7 +1251,7 @@ bool Loot::Release(Player* player)
         {
             Corpse* corpse = (Corpse*) m_lootTarget;
             if (!corpse || !corpse->IsWithinDistInMap(player, INTERACTION_DISTANCE))
-                return true;
+                return;
 
             if (IsLootedFor(player))
             {
