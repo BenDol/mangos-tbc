@@ -588,7 +588,6 @@ Player::Player(WorldSession* session): Unit(), m_taxiTracker(*this), m_mover(thi
     m_ammoDPS = 0.0f;
 
     m_temporaryUnsummonedPetNumber = 0;
-    m_pendingSteadyShot = false;
 
     //////////////////// Rest System/////////////////////
     time_inn_enter = 0;
@@ -4284,20 +4283,10 @@ void Player::SetLevitate(bool enable)
 
 void Player::SetCanFly(bool enable)
 {
-    WorldPacket data;
-    if (enable)
-        data.Initialize(SMSG_MOVE_SET_CAN_FLY, 12);
-    else
-        data.Initialize(SMSG_MOVE_UNSET_CAN_FLY, 12);
-
+    WorldPacket data(enable ? SMSG_MOVE_SET_CAN_FLY : SMSG_MOVE_UNSET_CAN_FLY, GetPackGUID().size() + 4);
     data << GetPackGUID();
-    data << uint32(0);                                      // unk
-    SendMessageToSet(data, true);
-
-    data.Initialize(MSG_MOVE_UPDATE_CAN_FLY, 64);
-    data << GetPackGUID();
-    m_movementInfo.Write(data);
-    SendMessageToSet(data, false);
+    data << uint32(0);
+    GetSession()->SendPacket(data);
 }
 
 void Player::SetFeatherFall(bool enable)
