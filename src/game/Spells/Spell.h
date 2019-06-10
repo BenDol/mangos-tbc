@@ -271,13 +271,20 @@ class SpellLog
 
 struct NextCastingSpell
 {
-    NextCastingSpell() : spellInfo(nullptr), cast_count(0) {}
-    NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets const* _targets, uint32 _cast_count)
-        : spellInfo(_spellInfo), targets(*_targets), cast_count(_cast_count) {}
+    NextCastingSpell() : spellInfo(nullptr), castCount(0), castFlags(TRIGGERED_NONE), afterSpell(0) {}
+    NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets const* _targets, uint32 _castCount, int32 _castFlags = TRIGGERED_NONE, uint32 _afterSpell = 0)
+        : spellInfo(_spellInfo), targets(*_targets), castCount(_castCount), castFlags(_castFlags), afterSpell(_afterSpell) {}
+    NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets _targets, uint32 _castCount, int32 _castFlags = TRIGGERED_NONE, uint32 _afterSpell = 0)
+        : spellInfo(_spellInfo), targets(_targets), castCount(_castCount), castFlags(_castFlags), afterSpell(_afterSpell) {}
+    ~NextCastingSpell() {
+        spellInfo = nullptr;
+    }
 
     SpellEntry const* spellInfo;
     SpellCastTargets targets;
-    uint32 cast_count;
+    uint32 castCount;
+    int32 castFlags;
+    uint32 afterSpell;
 };
 
 class Spell

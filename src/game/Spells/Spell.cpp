@@ -3844,17 +3844,21 @@ void Spell::executed()
     NextCastingSpell* nextSpell = m_caster->GetNextCastingSpell();
     if (nextSpell)
     {
-        if (nextSpell->spellInfo)
+        if (nextSpell->spellInfo && (!nextSpell->afterSpell || nextSpell->spellInfo->Id == nextSpell->afterSpell))
         {
             SpellCastTargets targets = nextSpell->targets;
             targets.Update(m_caster);
 
-            Spell* spell = new Spell(m_caster, nextSpell->spellInfo, TRIGGERED_IGNORE_GCD);
-            spell->m_cast_count = nextSpell->cast_count;
+            uint32 castFlags = ((castFlags & TRIGGERED_IGNORE_GCD) == 0) 
+                ? uint32(nextSpell->castFlags | TRIGGERED_IGNORE_GCD) : uint32(nextSpell->castFlags);
+
+            Spell* spell = new Spell(m_caster, nextSpell->spellInfo, castFlags);
+            spell->m_cast_count = nextSpell->castCount;
+            m_caster->SetNextCastingSpell(nullptr);
             spell->SpellStart(&targets);
         }
-
-        m_caster->SetNextCastingSpell(nullptr);
+        else
+            m_caster->SetNextCastingSpell(nullptr);
     }
 }
 
@@ -5975,6 +5979,26 @@ SpellCastResult Spell::CheckCast(bool strict)
             uint32 itemType = GetUsableHealthStoneItemType(m_caster);
             if (itemType && m_caster->IsPlayer() && ((Player*)m_caster)->GetItemCount(itemType) > 0)
                 return SPELL_FAILED_TOO_MANY_OF_ITEM;
+            break;
+        }
+        case 14288: // Multi-Shot
+        case 14289:
+        case 14290:
+        case 25294:
+        case 27021:
+        case 34120: // Steady Shot
+        {
+            // If auto shot is currently in its prepare fire stage, we need to delay
+            // steady shot, but still consume GCD
+            if (!m_ignoreGCD && m_caster->IsPlayer() && m_caster->getAttackTimer(RANGED_ATTACK) <= 500 && !m_caster->GetNextCastingSpell() && 
+                !m_caster->IsNonMeleeSpellCasted(false, false, true))
+            {
+                // Prepare a steady/multi shot that will be executed without GCD when auto
+                // shot finishes.
+                ((Player*)m_caster)->SetNextCastingSpell(new NextCastingSpell(m_spellInfo, m_targets, m_cast_count, TRIGGERED_INSTANT_CAST, 75));
+                m_caster->AddGCD(*m_spellInfo);
+                return SPELL_FAILED_DONT_REPORT;
+            }
             break;
         }
     }
