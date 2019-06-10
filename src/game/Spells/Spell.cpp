@@ -3844,7 +3844,7 @@ void Spell::executed()
     NextCastingSpell* nextSpell = m_caster->GetNextCastingSpell();
     if (nextSpell)
     {
-        if (nextSpell->spellInfo && (!nextSpell->afterSpell || nextSpell->spellInfo->Id == nextSpell->afterSpell))
+        if (nextSpell->spellInfo && (!nextSpell->afterSpell || m_spellInfo->Id == nextSpell->afterSpell))
         {
             SpellCastTargets targets = nextSpell->targets;
             targets.Update(m_caster);
