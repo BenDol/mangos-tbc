@@ -3849,8 +3849,9 @@ void Spell::executed()
             SpellCastTargets targets = nextSpell->targets;
             targets.Update(m_caster);
 
-            uint32 castFlags = ((castFlags & TRIGGERED_IGNORE_GCD) == 0) 
-                ? uint32(nextSpell->castFlags | TRIGGERED_IGNORE_GCD) : uint32(nextSpell->castFlags);
+            uint32 castFlags = nextSpell->castFlags;
+            if ((castFlags & TRIGGERED_IGNORE_GCD) == 0)
+                castFlags = castFlags | TRIGGERED_IGNORE_GCD;
 
             Spell* spell = new Spell(m_caster, nextSpell->spellInfo, castFlags);
             spell->m_cast_count = nextSpell->castCount;
