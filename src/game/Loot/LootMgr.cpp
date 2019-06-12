@@ -1235,9 +1235,7 @@ bool Loot::Release(Player* player)
                     // The fishing hole used once more
                     go->AddUse();                           // if the max usage is reached, will be despawned at next tick
                     if (go->GetUseCount() >= urand(go->GetGOInfo()->fishinghole.minSuccessOpens, go->GetGOInfo()->fishinghole.maxSuccessOpens))
-                    {
                         go->SetLootState(GO_JUST_DEACTIVATED);
-                    }
                     else
                         go->SetLootState(GO_READY);
                     break;
@@ -1354,14 +1352,20 @@ bool Loot::Release(Player* player)
                         SendReleaseForAll();
                         creature->SetLootStatus(CREATURE_LOOT_STATUS_LOOTED);
                         m_lootTarget->ForceValuesUpdateAtIndex(UNIT_DYNAMIC_FLAGS);
-                        break;
                     }
-
-                    if (IsLootedForAll())
+                    else if (IsLootedForAll())
                     {
                         SendReleaseForAll();
                         creature->SetLootStatus(CREATURE_LOOT_STATUS_LOOTED);
+                        break;
                     }
+                    else
+                    {
+                        // nothing was released, we need to ensure
+                        // the client has been updated.
+                        updateClients = true;
+                    }
+
                     break;
                 }
                 default:
@@ -2089,7 +2093,6 @@ void Loot::ForceLootAnimationClientUpdate() const
             m_lootTarget->ForceValuesUpdateAtIndex(UNIT_DYNAMIC_FLAGS);
             break;
         case TYPEID_GAMEOBJECT:
-            return;
             // we have to update sparkles/loot for this object
             if (m_isChest)
                 m_lootTarget->ForceValuesUpdateAtIndex(GAMEOBJECT_DYN_FLAGS);
