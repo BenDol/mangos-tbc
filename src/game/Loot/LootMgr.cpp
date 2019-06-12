@@ -1147,7 +1147,7 @@ void Loot::SetPlayerIsNotLooting(Player* player)
     }
 }
 
-void Loot::Release(Player* player)
+bool Loot::Release(Player* player)
 {
     bool updateClients = false;
     if (player->GetObjectGuid() == m_currentLooterGuid)
@@ -1251,7 +1251,7 @@ void Loot::Release(Player* player)
         {
             Corpse* corpse = (Corpse*) m_lootTarget;
             if (!corpse || !corpse->IsWithinDistInMap(player, INTERACTION_DISTANCE))
-                return;
+                return true;
 
             if (IsLootedFor(player))
             {
@@ -1262,7 +1262,6 @@ void Loot::Release(Player* player)
         }
         case HIGHGUID_ITEM:
         {
-            ForceLootAnimationClientUpdate();
             switch (m_lootType)
             {
                 // temporary loot in stacking items, clear loot state, no auto loot move
@@ -1302,9 +1301,7 @@ void Loot::Release(Player* player)
                     break;
                 }
             }
-            //already done above
-            updateClients = false;
-            break;
+            return true;
         }
         case HIGHGUID_UNIT:
         {
@@ -1378,6 +1375,8 @@ void Loot::Release(Player* player)
 
     if (updateClients)
         ForceLootAnimationClientUpdate();
+
+    return true;
 }
 
 // Popup windows with loot content
@@ -2189,14 +2188,7 @@ void Loot::SendGold(Player* player)
     }
     m_gold = 0;
 
-    // animation update is done in Release if needed.
-    if (IsLootedFor(player))
-    {
-        Release(player);
-        // Be aware that in case of items that contain loot this class may be freed.
-        // All pointers may be invalid due to Player::DestroyItem call.
-    }
-    else
+    if (!IsLootedFor(player) || Release(player))
         ForceLootAnimationClientUpdate();
 }
 
