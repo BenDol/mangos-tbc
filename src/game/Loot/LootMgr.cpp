@@ -1357,7 +1357,6 @@ bool Loot::Release(Player* player)
                     {
                         SendReleaseForAll();
                         creature->SetLootStatus(CREATURE_LOOT_STATUS_LOOTED);
-                        break;
                     }
                     else
                     {
