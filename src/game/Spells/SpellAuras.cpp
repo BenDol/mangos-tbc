@@ -7502,8 +7502,6 @@ inline bool IsRemovedOnShapeshiftLost(SpellEntry const* spellproto, ObjectGuid c
                 case 11329: // but they have attribute SPELL_ATTR_NOT_SHAPESHIFT
                 case 26888: // maybe relic from when they had Effect1?
                     return true;
-                case 12328:
-                    return false;
                 default:
                     break;
             }
