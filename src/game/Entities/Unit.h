@@ -264,6 +264,7 @@ struct FactionTemplateEntry;
 struct Modifier;
 struct SpellEntry;
 struct SpellEntryExt;
+struct NextCastingSpell;
 
 class Aura;
 class SpellAuraHolder;
@@ -334,6 +335,7 @@ enum TriggerCastFlags : uint32
     TRIGGERED_DO_NOT_PROC                       = 0x00000040,   // Spells from scripts should not proc - DBScripts for example
     TRIGGERED_PET_CAST                          = 0x00000080,   // Spell that should report error through pet opcode
     TRIGGERED_NORMAL_COMBAT_CAST                = 0x00000100,   // AI needs to be notified about change of target
+    TRIGGERED_IGNORE_GCD                        = 0x00000200,   // Ignores the GCD checks and do not apply GCD
     TRIGGERED_FULL_MASK                         = 0xFFFFFFFF
 };
 
@@ -2048,6 +2050,14 @@ class Unit : public WorldObject
         Spell* GetCurrentSpell(CurrentSpellTypes spellType) const { return m_currentSpells[spellType]; }
         Spell* FindCurrentSpellBySpellId(uint32 spell_id) const;
 
+        NextCastingSpell* GetNextCastingSpell() const { return m_nextCastingSpell; }
+        void SetNextCastingSpell(NextCastingSpell* nextCastingSpell)
+        {
+            if (m_nextCastingSpell)
+                delete m_nextCastingSpell;
+            m_nextCastingSpell = nextCastingSpell;
+        }
+
         bool CheckAndIncreaseCastCounter();
         void DecreaseCastCounter() { if (m_castCounter) --m_castCounter; }
 
@@ -2580,6 +2590,7 @@ class Unit : public WorldObject
         AttackerSet m_attackers;                            // Used to help know who is currently attacking this unit
         Spell* m_currentSpells[CURRENT_MAX_SPELL];
         uint32 m_castCounter;                               // count casts chain of triggered spells for prevent infinity cast crashes
+        NextCastingSpell* m_nextCastingSpell;
 
         UnitVisibility m_Visibility;
         Position m_last_notified_position;

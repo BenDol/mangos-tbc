@@ -383,6 +383,7 @@ Spell::Spell(Unit* caster, SpellEntry const* info, uint32 triggeredFlags, Object
     m_doNotProc = (triggeredFlags & TRIGGERED_DO_NOT_PROC) != 0;
     m_petCast = (triggeredFlags & TRIGGERED_PET_CAST) != 0;
     m_notifyAI = (triggeredFlags & TRIGGERED_NORMAL_COMBAT_CAST) != 0;
+    m_ignoreGCD = (triggeredFlags & TRIGGERED_IGNORE_GCD) != 0;
 
     m_reflectable = IsReflectableSpell(m_spellInfo);
 
@@ -3052,17 +3053,9 @@ SpellCastResult Spell::SpellStart(SpellCastTargets const* targets, Aura* trigger
     if (triggeredByAura)
         m_triggeredByAuraSpell = triggeredByAura->GetSpellProto();
 
-    // create and add update event for this spell
+    // Create and add update event for this spell
     SpellEvent* Event = new SpellEvent(this);
     m_caster->m_events.AddEvent(Event, m_caster->m_events.CalculateTime(1));
-
-    // Prevent casting at cast another spell (ServerSide check)
-    if (m_caster->IsNonMeleeSpellCasted(false, true, true) && m_cast_count && !m_spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING))
-    {
-        SendCastResult(SPELL_FAILED_SPELL_IN_PROGRESS);
-        finish(false);
-        return SPELL_FAILED_SPELL_IN_PROGRESS;
-    }
 
     // Fill cost data
     m_powerCost = m_IsTriggeredSpell ? 0 : CalculatePowerCost(m_spellInfo, m_caster, this, m_CastItem);
@@ -3116,8 +3109,11 @@ void Spell::Prepare()
         // will show cast bar
         SendSpellStart();
 
-        // add gcd server side (client side is handled by client itself)
-        m_caster->AddGCD(*m_spellInfo);
+        if (!m_ignoreGCD)
+        {
+            // add gcd server side (client side is handled by client itself)
+            m_caster->AddGCD(*m_spellInfo);
+        }
 
         // Execute instant spells immediate
         if (m_timer == 0 && !IsNextMeleeSwingSpell() && (!IsAutoRepeat() || m_triggerAutorepeat))
@@ -3142,6 +3138,9 @@ void Spell::cancel()
 {
     if (m_spellState == SPELL_STATE_FINISHED)
         return;
+
+    // cancel the next spell cast too
+    m_caster->SetNextCastingSpell(nullptr);
 
     // channeled spells don't display interrupted message even if they are interrupted, possible other cases with no "Interrupted" message
     bool sendInterrupt = !(IsChanneledSpell(m_spellInfo) || m_autoRepeat);
@@ -3210,7 +3209,7 @@ void Spell::cast(bool skipCheck)
 
         SendCastResult(SPELL_FAILED_ERROR);
         finish(false);
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3222,7 +3221,7 @@ void Spell::cast(bool skipCheck)
     {
         cancel();
         m_caster->DecreaseCastCounter();
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3367,7 +3366,7 @@ void Spell::cast(bool skipCheck)
     if (m_spellState == SPELL_STATE_FINISHED)               // stop cast if spell marked as finish somewhere in FillTargetMap
     {
         m_caster->DecreaseCastCounter();
-        SetExecutedCurrently(false);
+        executed();
         return;
     }
 
@@ -3412,7 +3411,7 @@ void Spell::cast(bool skipCheck)
     }
 
     m_caster->DecreaseCastCounter();
-    SetExecutedCurrently(false);
+    executed();
 }
 
 void Spell::handle_immediate()
@@ -3834,6 +3833,33 @@ void Spell::finish(bool ok)
         Map* map = m_caster->GetMap();
         if (map->IsDungeon())
             ((DungeonMap*)map)->GetPersistanceState()->UpdateEncounterState(ENCOUNTER_CREDIT_CAST_SPELL, m_spellInfo->Id);
+    }
+}
+
+void Spell::executed()
+{
+    SetExecutedCurrently(false);
+
+    // check if there is a next cast spell to start
+    NextCastingSpell* nextSpell = m_caster->GetNextCastingSpell();
+    if (nextSpell)
+    {
+        if (nextSpell->spellInfo && (!nextSpell->afterSpell || m_spellInfo->Id == nextSpell->afterSpell))
+        {
+            SpellCastTargets targets = nextSpell->targets;
+            targets.Update(m_caster);
+
+            uint32 castFlags = nextSpell->castFlags;
+            if ((castFlags & TRIGGERED_IGNORE_GCD) == 0)
+                castFlags = castFlags | TRIGGERED_IGNORE_GCD;
+
+            Spell* spell = new Spell(m_caster, nextSpell->spellInfo, castFlags);
+            spell->m_cast_count = nextSpell->castCount;
+            m_caster->SetNextCastingSpell(nullptr);
+            spell->SpellStart(&targets);
+        }
+        else
+            m_caster->SetNextCastingSpell(nullptr);
     }
 }
 
@@ -4585,7 +4611,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         return SPELL_FAILED_CASTER_DEAD;
 
     // check global cooldown
-    if (strict && !m_IsTriggeredSpell && m_caster->HasGCD(m_spellInfo))
+    if (strict && !m_ignoreGCD && !m_IsTriggeredSpell && m_caster->HasGCD(m_spellInfo))
         return SPELL_FAILED_NOT_READY;
 
     // only allow triggered spells if at an ended battleground
@@ -5954,6 +5980,26 @@ SpellCastResult Spell::CheckCast(bool strict)
             uint32 itemType = GetUsableHealthStoneItemType(m_caster);
             if (itemType && m_caster->IsPlayer() && ((Player*)m_caster)->GetItemCount(itemType) > 0)
                 return SPELL_FAILED_TOO_MANY_OF_ITEM;
+            break;
+        }
+        case 14288: // Multi-Shot
+        case 14289:
+        case 14290:
+        case 25294:
+        case 27021:
+        case 34120: // Steady Shot
+        {
+            // If auto shot is currently in its prepare fire stage, we need to delay
+            // steady shot, but still consume GCD
+            if (!m_ignoreGCD && m_caster->IsPlayer() && m_caster->getAttackTimer(RANGED_ATTACK) <= 500 && !m_caster->GetNextCastingSpell() && 
+                !m_caster->IsNonMeleeSpellCasted(false, false, true))
+            {
+                // Prepare a steady/multi shot that will be executed without GCD when auto
+                // shot finishes.
+                ((Player*)m_caster)->SetNextCastingSpell(new NextCastingSpell(m_spellInfo, m_targets, m_cast_count, TRIGGERED_INSTANT_CAST, 75));
+                m_caster->AddGCD(*m_spellInfo);
+                return SPELL_FAILED_DONT_REPORT;
+            }
             break;
         }
     }
@@ -7843,5 +7889,5 @@ void Spell::StopCast(SpellCastResult castResult)
     SendInterrupted(castResult);
     finish(false);
     m_caster->DecreaseCastCounter();
-    SetExecutedCurrently(false);
+    executed();
 }

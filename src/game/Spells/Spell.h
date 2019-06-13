@@ -269,6 +269,24 @@ class SpellLog
         uint32 m_currentEffect;
 };
 
+struct NextCastingSpell
+{
+    NextCastingSpell() : spellInfo(nullptr), castCount(0), castFlags(TRIGGERED_NONE), afterSpell(0) {}
+    NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets const* _targets, uint32 _castCount, int32 _castFlags = TRIGGERED_NONE, uint32 _afterSpell = 0)
+        : spellInfo(_spellInfo), targets(*_targets), castCount(_castCount), castFlags(_castFlags), afterSpell(_afterSpell) {}
+    NextCastingSpell(SpellEntry const* _spellInfo, SpellCastTargets _targets, uint32 _castCount, int32 _castFlags = TRIGGERED_NONE, uint32 _afterSpell = 0)
+        : spellInfo(_spellInfo), targets(_targets), castCount(_castCount), castFlags(_castFlags), afterSpell(_afterSpell) {}
+    ~NextCastingSpell() {
+        spellInfo = nullptr;
+    }
+
+    SpellEntry const* spellInfo;
+    SpellCastTargets targets;
+    uint32 castCount;
+    int32 castFlags;
+    uint32 afterSpell;
+};
+
 class Spell
 {
         friend struct MaNGOS::SpellNotifierPlayer;
@@ -388,6 +406,7 @@ class Spell
         void update(uint32 difftime);
         void cast(bool skipCheck = false);
         void finish(bool ok = true);
+        void executed();
         void TakePower();
         void TakeAmmo() const;
         void TakeReagents();
@@ -484,6 +503,7 @@ class Spell
         bool m_doNotProc;
         bool m_petCast;
         bool m_notifyAI;
+        bool m_ignoreGCD;
 
         int32 GetCastTime() const { return m_casttime; }
         uint32 GetCastedTime() const { return m_timer; }
@@ -504,8 +524,8 @@ class Spell
         bool IsEffectWithImplementedMultiplier(uint32 effectId) const;
 
         bool IsDeletable() const { return !m_referencedFromCurrentSpell && !m_executedCurrently; }
-        void SetReferencedFromCurrent(bool yes) { m_referencedFromCurrentSpell = yes; }
-        void SetExecutedCurrently(bool yes) { m_executedCurrently = yes; }
+        void SetReferencedFromCurrent(bool referencedFromCurrentSpell) { m_referencedFromCurrentSpell = referencedFromCurrentSpell; }
+        void SetExecutedCurrently(bool executedCurrently) { m_executedCurrently = executedCurrently; }
         bool IsExecutedCurrently() const { return m_executedCurrently; }
         uint64 GetDelayStart() const { return m_delayStart; }
         void SetDelayStart(uint64 m_time) { m_delayStart = m_time; }
