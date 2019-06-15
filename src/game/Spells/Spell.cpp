@@ -4607,7 +4607,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
     // check global cooldown
     if (strict && !m_ignoreGCD && !m_IsTriggeredSpell && m_caster->HasGCD(m_spellInfo))
-        return SPELL_FAILED_NOT_READY;
+        return m_spellInfo->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE) ? SPELL_FAILED_DONT_REPORT : SPELL_FAILED_NOT_READY;
 
     // only allow triggered spells if at an ended battleground
     if (!m_IsTriggeredSpell && m_caster->IsPlayer())
@@ -4931,13 +4931,19 @@ SpellCastResult Spell::CheckCast(bool strict)
                 for (Unit::SpellAuraHolderMap::const_iterator iter = spair.begin(); iter != spair.end(); ++iter)
                 {
                     const SpellAuraHolder* existing = iter->second;
+                    // We can overwrite own auras at all times
+                    if (casterGuid == existing->GetCasterGuid())
+                        continue;
                     const SpellEntry* entry = existing->GetSpellProto();
-                    const bool own = (casterGuid == existing->GetCasterGuid());
                     // Cannot overwrite someone else's auras
-                    if (!own && sSpellMgr.IsNoStackSpellDueToSpell(m_spellInfo, entry))
+                    if (!sSpellMgr.IsSpellStackableWithSpellForDifferentCasters(m_spellInfo, entry))
                     {
-                        if (IsSimilarExistingAuraStronger(m_caster, m_spellInfo->Id, existing) ||
-                            (sSpellMgr.IsSpellAnotherRankOfSpell(m_spellInfo->Id, entry->Id) && sSpellMgr.IsSpellHigherRankOfSpell(entry->Id, m_spellInfo->Id)))
+                        bool bounce = false;
+                        if (IsSimilarExistingAuraStronger(m_caster, m_spellInfo->Id, existing))
+                            bounce = true;
+                        if (!bounce && sSpellMgr.IsSpellAnotherRankOfSpell(m_spellInfo->Id, entry->Id) && sSpellMgr.IsSpellHigherRankOfSpell(entry->Id, m_spellInfo->Id))
+                            bounce = true;
+                        if (bounce)
                             return SPELL_FAILED_AURA_BOUNCED;
                     }
                 }
@@ -7442,7 +7448,7 @@ bool SpellEvent::Execute(uint64 e_time, uint32 p_time)
 
     // spell processing not complete, plan event on the next update interval
     m_Spell->GetCaster()->m_events.AddEvent(this, e_time + 1, false);
-    return false; // event not complete
+    return false;                                           // event not complete
 }
 
 void SpellEvent::Abort(uint64 /*e_time*/)

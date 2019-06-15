@@ -2738,7 +2738,7 @@ void Unit::SendMeleeAttackStop(Unit* victim) const
     data << victim->GetPackGUID();                          // can be 0x00...
     data << uint32(0);                                      // can be 0x1
     SendMessageToSet(data, true);
-    DETAIL_FILTER_LOG(LOG_FILTER_COMBAT, "%s %u stopped attacking %s %u", (GetTypeId() == TYPEID_PLAYER ? "player" : "creature"), GetGUIDLow(), (victim->GetTypeId() == TYPEID_PLAYER ? "player" : "creature"), victim->GetGUIDLow());
+    DETAIL_FILTER_LOG(LOG_FILTER_COMBAT, "%s stopped attacking %s", GetGuidStr().c_str(), victim->GetGuidStr().c_str());
 
     /*if(victim->GetTypeId() == TYPEID_UNIT)
     ((Creature*)victim)->AI().EnterEvadeMode(this);*/
@@ -4687,14 +4687,14 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
     {
         if (!RemoveNoStackAurasDueToAuraHolder(holder))
         {
-            return false; // couldn't remove conflicting aura with higher rank
+            return false;                                   // couldn't remove conflicting aura with higher rank
         }
     }
 
     // update tracked aura targets list (before aura add to aura list, to prevent unexpected remove recently added aura)
     if (TrackedAuraType trackedType = holder->GetTrackedAuraType())
     {
-        if (Unit* caster = holder->GetCaster()) // caster not in world
+        if (Unit* caster = holder->GetCaster())             // caster not in world
         {
             // Only compare TrackedAuras of same tracking type
             TrackedAuraTargetMap& scTargets = caster->GetTrackedAuraTargets(trackedType);
@@ -4761,7 +4761,7 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
             AddAuraToModList(aur);
 
     holder->ApplyAuraModifiers(true, true);                 // This is the place where auras are actually applied onto the target
-    DEBUG_LOG("Holder of spell %u now is in use", holder->GetId());
+    DETAIL_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Holder of spell %u now is in use", holder->GetId());
 
     // if aura deleted before boosts apply ignore
     // this can be possible it it removed indirectly by triggered spell effect at ApplyModifier
@@ -4831,8 +4831,11 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         return false;
 
     // passive spell special case (only non stackable with ranks)
-    if (IsPassiveSpell(spellProto) && IsPassiveSpellStackableWithRanks(spellProto))
-        return true;
+    if (IsPassiveSpell(spellProto))
+    {
+        if (IsPassiveSpellStackableWithRanks(spellProto))
+            return true;
+    }
 
     const uint32 spellId = holder->GetId();
     const SpellSpecific specific = GetSpellSpecific(spellId);
@@ -4861,19 +4864,13 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         // Experimental: passive abilities dont stack with itself
         if (IsPassiveSpell(existingSpellProto) && (spellId != existingSpellId || !spellProto->HasAttribute(SPELL_ATTR_ABILITY)))
         {
-            // passive spells aren't stackable from the same caster
-            // Experimental: ensure party passive auras and party item buffs are still being processed
-            if (own)
-            {
-                // passive non-stackable spells not stackable only with another rank of same spell
-                if (!sSpellMgr.IsSpellAnotherRankOfSpell(spellId, existingSpellId))
-                    continue;
-            }
-            // make sure we aren't a friendly aura (these need to be checked still)
-            else if (!IsSpellHaveEffect(spellProto, SPELL_EFFECT_APPLY_AURA)
-                  && !IsSpellHaveEffect(spellProto, SPELL_EFFECT_APPLY_AREA_AURA_PARTY)
-                  && !IsSpellHaveEffect(spellProto, SPELL_EFFECT_APPLY_AREA_AURA_FRIEND)
-                  && !IsSpellHaveEffect(spellProto, SPELL_EFFECT_APPLY_AREA_AURA_PET))
+            // passive non-stackable spells not stackable only for same caster
+            // Experimental: exclude party passive auras from this
+            if (!own && !IsSpellHaveEffect(spellProto, SPELL_EFFECT_APPLY_AREA_AURA_PARTY))
+                continue;
+
+            // passive non-stackable spells not stackable only with another rank of same spell
+            if (!sSpellMgr.IsSpellAnotherRankOfSpell(spellId, existingSpellId))
                 continue;
         }
 
@@ -4898,7 +4895,21 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
             unique = diminished;
         }
 
-        const bool stackable = !sSpellMgr.IsNoStackSpellDueToSpellAndCastItem(holder, existing);
+        const bool stackable = sSpellMgr.IsSpellStackableWithSpell(spellProto, existingSpellProto);
+        // Remove only own auras when multiranking
+        if (!unique && own && stackable && sSpellMgr.IsSpellAnotherRankOfSpell(spellId, existingSpellId))
+        {
+            // Check for same item source (allow two weapon enchants)
+            if (const ObjectGuid &itemGuid = holder->GetCastItemGuid())
+            {
+                if (itemGuid != existing->GetCastItemGuid())
+                    continue;
+            }
+
+            unique = true;
+            personal = true;
+        }
+
         if (unique || !stackable)
         {
             // check if this spell can be triggered by any talent aura
