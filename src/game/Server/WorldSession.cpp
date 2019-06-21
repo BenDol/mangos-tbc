@@ -99,8 +99,8 @@ WorldSession::WorldSession(uint32 id, WorldSocket* sock, AccountTypes sec, uint8
     _player(nullptr), m_Socket(sock ? sock->shared<WorldSocket>() : nullptr), _security(sec), _accountId(id), m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
     m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
-    m_latency(0), m_clientTimeDelay(0), m_tutorialState(TUTORIALDATA_UNCHANGED), m_sessionState(WORLD_SESSION_STATE_CREATED),
-    m_requestSocket(nullptr)
+    m_latency(0), m_tutorialState(TUTORIALDATA_UNCHANGED), m_sessionState(WORLD_SESSION_STATE_CREATED), m_requestSocket(nullptr),
+    m_timeSyncClockDeltaQueue(6), m_timeSyncClockDelta(0), m_pendingTimeSyncRequests(), m_timeSyncNextCounter(0), m_timeSyncTimer(0) {}
 {
 #ifdef BUILD_ANTICHEAT
     m_warden = NULL;
@@ -249,6 +249,7 @@ void WorldSession::QueuePacket(std::unique_ptr<WorldPacket> new_packet)
     std::lock_guard<std::mutex> guard(m_recvQueueLock);
     m_recvQueue.push_back(std::move(new_packet));
 }
+
 /// Logging helper for unexpected opcodes
 void WorldSession::LogUnexpectedOpcode(WorldPacket const& packet, const char* reason) const
 {
@@ -268,7 +269,7 @@ void WorldSession::LogUnprocessedTail(WorldPacket const& packet) const
 }
 
 /// Update the WorldSession (triggered by World update)
-bool WorldSession::Update(PacketFilter& updater)
+bool WorldSession::Update(uint32 diff, PacketFilter& updater)
 {
     std::lock_guard<std::mutex> guard(m_recvQueueLock);
 
@@ -501,6 +502,17 @@ bool WorldSession::Update(PacketFilter& updater)
             }
             default:
                 break;
+        }
+    }
+    else
+    {
+        // Send time sync packet every 10s.
+        if (m_timeSyncTimer > 0)
+        {
+            if (diff >= m_timeSyncTimer)
+                SendTimeSync();
+            else
+                m_timeSyncTimer -= diff;
         }
     }
 
@@ -993,3 +1005,22 @@ void WorldSession::SendPacketWarden(WorldPacket const& packet) const
     m_Socket->SendPacket(packet);
 }
 #endif
+
+void WorldSession::ResetTimeSync()
+{
+    m_timeSyncNextCounter = 0;
+    m_pendingTimeSyncRequests.clear();
+}
+
+void WorldSession::SendTimeSync()
+{
+    WorldPacket data(SMSG_TIME_SYNC_REQ, 4);
+    data << uint32(m_timeSyncNextCounter);
+    SendPacket(data);
+
+    m_pendingTimeSyncRequests[m_timeSyncNextCounter] = WorldTimer::getMSTime();
+
+    // Schedule next sync in 10 sec (except for the 2 first packets, which are spaced by only 5s)
+    m_timeSyncTimer = m_timeSyncNextCounter == 0 ? 5000 : 10000;
+    m_timeSyncNextCounter++;
+}
