@@ -874,39 +874,6 @@ void WorldSession::HandleNextCinematicCamera(WorldPacket& /*recv_data*/)
     GetPlayer()->StartCinematic();
 }
 
-void WorldSession::HandleMoveTimeSkippedOpcode(WorldPacket& recvData)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_TIME_SKIPPED");
-
-    ObjectGuid guid;
-    uint32 timeSkipped;
-    recvData >> guid.ReadAsPacked();
-    recvData >> timeSkipped;
-
-    Unit* mover = GetPlayer()->m_mover;
-
-    if (!mover)
-    {
-        DETAIL_LOG("WorldSession::HandleMoveTimeSkippedOpcode wrong mover state from the unit moved by the player %s", GetPlayer()->GetOwnerGuid().GetString().c_str());
-        return;
-    }
-
-    // prevent tampered movement data
-    if (guid != mover->GetOwnerGuid())
-    {
-        DETAIL_LOG("WorldSession::HandleMoveTimeSkippedOpcode wrong guid from the unit moved by the player %s", GetPlayer()->GetOwnerGuid().GetString().c_str());
-        return;
-    }
-
-    uint32 time = mover->m_movementInfo.GetTime();
-    mover->m_movementInfo.UpdateTime(time + timeSkipped);
-
-    WorldPacket data(MSG_MOVE_TIME_SKIPPED, recvData.size());
-    data << guid.WriteAsPacked();
-    data << timeSkipped;
-    GetPlayer()->SendMessageToSet(data, false);
-}
-
 void WorldSession::HandleFeatherFallAck(WorldPacket& recv_data)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_FEATHER_FALL_ACK");
