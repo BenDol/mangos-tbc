@@ -274,15 +274,18 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
         mover->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_LANDING); // Parachutes
 
     /* process position-change */
-    HandleMoverRelocation(movementInfo);
+    UpdateMovementTime(movementInfo);
 
-    if (plMover)
-        plMover->UpdateFallInformationIfNeed(movementInfo, opcode);
 
     WorldPacket data(opcode, recv_data.size());
     data << mover->GetPackGUID();                           // write guid
     movementInfo.Write(data);                               // write data
     mover->SendMessageToSetExcept(data, _player);
+
+    HandleMoverRelocation(movementInfo);
+
+    if (plMover)
+        plMover->UpdateFallInformationIfNeed(movementInfo, opcode);
 }
 
 void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recv_data)
@@ -425,6 +428,7 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recv_data)
     if (!VerifyMovementInfo(movementInfo, guid))
         return;
 
+    UpdateMovementTime(movementInfo);
     HandleMoverRelocation(movementInfo);
 
     if (plMover->IsFreeFlying())
@@ -523,12 +527,20 @@ bool WorldSession::VerifyMovementInfo(MovementInfo const& movementInfo) const
     return true;
 }
 
+void WorldSession::UpdateMovementTime(MovementInfo& movementInfo)
+{
+    int64 movementTime = (int64)movementInfo.GetTime() + m_timeSyncClockDelta;
+    if (m_timeSyncClockDelta == 0 || movementTime < 0 || movementTime > 0xFFFFFFFF)
+    {
+        DETAIL_LOG("The computed movement time using clockDelta is erronous. Using fallback instead");
+        movementInfo.UpdateTime(World::GetCurrentMSTime());
+    }
+    else
+        movementInfo.UpdateTime((uint32)movementTime);
+}
+
 void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo)
 {
-    if (m_clientTimeDelay == 0)
-        m_clientTimeDelay = WorldTimer::getMSTime() - movementInfo.GetTime();
-    movementInfo.UpdateTime(movementInfo.GetTime() + m_clientTimeDelay + MOVEMENT_PACKET_TIME_DELAY);
-
     Unit* mover = _player->GetMover();
 
     if (Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : nullptr)
@@ -556,13 +568,13 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo)
             movementInfo.ClearTransportData();
         }
 
-        plMover->SetPosition(movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
         plMover->m_movementInfo = movementInfo;
+        plMover->SetPosition(movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
 
         if (movementInfo.GetPos()->z < -500.0f)
         {
             if (plMover->GetBattleGround()
-                    && plMover->GetBattleGround()->HandlePlayerUnderMap(_player))
+                && plMover->GetBattleGround()->HandlePlayerUnderMap(_player))
             {
                 // do nothing, the handle already did if returned true
             }
