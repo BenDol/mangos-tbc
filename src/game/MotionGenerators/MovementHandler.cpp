@@ -652,7 +652,6 @@ void WorldSession::HandleTimeSyncResp(WorldPacket& recvData)
     // 1) we assume that the request processing time equals 0.
     // 2) we assume that the packet took as much time to travel from server to client than it took to travel from client to server.
     uint32 roundTripDuration = WorldTimer::getMSTimeDiff(serverTimeAtSent, recvData.GetReceivedTime());
-    BASIC_LOG("roundTripDuration: %d", roundTripDuration);
     uint32 lagDelay = roundTripDuration / 2;
 
     /*
@@ -665,7 +664,6 @@ void WorldSession::HandleTimeSyncResp(WorldPacket& recvData)
     serverTime = clockDelta + clientTime
     */
     int64 clockDelta = (int64)(serverTimeAtSent + lagDelay) - (int64)clientTimestamp;
-    BASIC_LOG("clockDelta: %d", clockDelta);
     m_timeSyncClockDeltaQueue.push_back(std::pair<int64, uint32>(clockDelta, roundTripDuration));
     ComputeNewClockDelta();
 }
