@@ -376,6 +376,9 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
             spellInfo = actualSpellInfo;
     }
 
+    if (HasMissingTargetFromClient(spellInfo))
+        targets.setUnitTarget(mover->GetTarget());
+
     // Prevent casting and handle the next spell queuing if able
     if (cast_count && mover->IsNonMeleeSpellCasted(false, true, true) && !spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING))
     {

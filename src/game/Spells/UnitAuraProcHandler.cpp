@@ -2070,6 +2070,24 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(ProcExecutionData& data
                     break;
                 // case 38363: break;                   // Gushing Wound
                 // case 39215: break;                   // Gushing Wound
+                case 39832:                             // Light of the Naaru - proc only hits demons near Black Temple entrance
+                    switch (pVictim->GetEntry())
+                    {
+                        case 21166:
+                        case 21768:
+                        case 22857:
+                        case 22858:
+                        case 22859:
+                        case 22860:
+                        case 22904:
+                        case 22988:
+                        case 23044:
+                        case 23152:
+                            break;
+                        default:
+                            return SPELL_AURA_PROC_FAILED;
+                    }
+                    break;
                 // case 40329: break;                   // Demo Shout Sensor
                 // case 40364: break;                   // Entangling Roots Sensor
                 // case 41054: break;                   // Copy Weapon
@@ -2594,7 +2612,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(ProcExecutionData& data
         // TODO: add neutral target handling, neutral targets should still be able to go through
         if (!(this == target && IsOnlySelfTargeting(triggerEntry)))
         {
-            if (IsPositiveSpellTargetMode(triggerEntry, this, target) != CanAssist(target))
+            if (IsPositiveSpellTargetMode(triggerEntry, this, target) != CanAssistSpell(target, triggerEntry))
                 return SPELL_AURA_PROC_FAILED;
         }
     }
@@ -2806,7 +2824,7 @@ SpellAuraProcResult Unit::HandleModCastingSpeedNotStackAuraProc(ProcExecutionDat
 {
     SpellEntry const* procSpell = data.procSpell;
     // Skip melee hits or instant cast spells
-    return !(procSpell == nullptr || GetSpellCastTime(procSpell) == 0) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
+    return !(procSpell == nullptr || GetSpellCastTime(procSpell, this) == 0) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
 }
 
 SpellAuraProcResult Unit::HandleReflectSpellsSchoolAuraProc(ProcExecutionData& data)

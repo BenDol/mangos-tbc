@@ -198,7 +198,7 @@ CanCastResult UnitAI::DoCastSpellIfCan(Unit* target, uint32 spellId, uint32 cast
                 caster->InterruptNonMeleeSpells(false);
 
             // Creature should always stop before it will cast a non-instant spell
-            if (GetSpellCastTime(spellInfo) || (IsChanneledSpell(spellInfo) && spellInfo->ChannelInterruptFlags & CHANNEL_FLAG_MOVEMENT))
+            if (GetSpellCastTime(spellInfo, caster) || (IsChanneledSpell(spellInfo) && spellInfo->ChannelInterruptFlags & CHANNEL_FLAG_MOVEMENT))
                 caster->StopMoving();
 
             // Creature should interrupt any current melee spell
@@ -633,4 +633,14 @@ void UnitAI::DoFlee()
     // set the ai state to feared so it can reset movegen and ai state at the end of the fear
     SetAIOrder(ORDER_FLEEING);
     SetCombatScriptStatus(true);
+}
+
+void UnitAI::DistancingStarted()
+{
+    SetCombatScriptStatus(true);
+}
+
+void UnitAI::DistancingEnded()
+{
+    SetCombatScriptStatus(false);
 }
