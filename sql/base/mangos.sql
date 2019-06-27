@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS `db_version`;
 CREATE TABLE `db_version` (
   `version` varchar(120) DEFAULT NULL,
   `creature_ai_version` varchar(120) DEFAULT NULL,
-  `required_s2387_01_mangos_weapon_skills_fix_tbc` bit(1) DEFAULT NULL
+  `required_s2391_01_mangos_creature_cooldown` bit(1) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Used DB version notes';
 
 --
@@ -945,6 +945,26 @@ LOCK TABLES `creature_conditional_spawn` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `creature_spawn_entry`
+--
+
+DROP TABLE IF EXISTS `creature_spawn_entry`;
+CREATE TABLE `creature_spawn_entry` (
+  `guid` int(10) unsigned NOT NULL DEFAULT '0' COMMENT 'Global Unique Identifier',
+  `entry` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`guid`,`entry`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Creature System (Spawn Entry)';
+
+--
+-- Dumping data for table `creature_spawn_entry`
+--
+
+LOCK TABLES `creature_spawn_entry` WRITE;
+/*!40000 ALTER TABLE `creature_spawn_entry` DISABLE KEYS */;
+/*!40000 ALTER TABLE `creature_spawn_entry` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `creature_equip_template`
 --
 
@@ -1409,6 +1429,14 @@ LOCK TABLES `creature_template_spells` WRITE;
 /*!40000 ALTER TABLE `creature_template_spells` DISABLE KEYS */;
 /*!40000 ALTER TABLE `creature_template_spells` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DROP TABLE IF EXISTS creature_cooldowns;
+CREATE TABLE creature_cooldowns (
+  `Entry` mediumint(8) unsigned NOT NULL,
+  `CooldownMin` int(10) unsigned NOT NULL,
+  `CooldownMax` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`entry`)
+);
 
 --
 -- Table structure for table `custom_texts`

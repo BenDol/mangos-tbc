@@ -400,7 +400,7 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
 
                     m_Socket = m_requestSocket;
                     m_requestSocket = nullptr;
-                    sLog.outString("New Session key %s", m_Socket->GetSessionKey().AsHexStr());
+                    sLog.outDetail("New Session key %s", m_Socket->GetSessionKey().AsHexStr());
                     SendAuthOk();
                 }
                 else
