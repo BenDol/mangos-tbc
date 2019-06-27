@@ -1273,9 +1273,8 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                 }
                 case 23725:                                 // Gift of Life (warrior bwl trinket)
                 {
-                    m_caster->CastSpell(m_caster, 23782, TRIGGERED_OLD_TRIGGERED);
-                    m_caster->CastSpell(m_caster, 23783, TRIGGERED_OLD_TRIGGERED);
-
+                    m_caster->CastSpell(nullptr, 23782, TRIGGERED_OLD_TRIGGERED);
+                    // m_caster->CastSpell(nullptr, 23783, TRIGGERED_OLD_TRIGGERED); // Patch 2.1 no longer heals
                     return;
                 }
                 case 23484:                                 // Dispel Drakonids
@@ -2025,6 +2024,14 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     unitTarget->CastSpell(unitTarget, 41466, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, m_caster->GetObjectGuid());
                     return;
                 }
+                case 39992:                                 // Needle Spine Targeting
+                {
+                    if (!unitTarget)
+                        return;
+
+                    m_caster->CastSpell(unitTarget, 39835, TRIGGERED_NONE);
+                    return;
+                }
                 case 39995:                                 // Four Dragons: Dummy to Dragon
                 {
                     if (!unitTarget || m_caster->GetTypeId() != TYPEID_PLAYER)
@@ -2766,7 +2773,9 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     return;
                 }
                 case 36448:                                 // Focused Bursts
-                case 36475:                                 // Focused Bursts
+                case 36475:
+                case 38986:
+                case 38987:
                 {
                     if (!unitTarget || eff_idx != EFFECT_INDEX_0)
                         return;
@@ -3594,7 +3603,7 @@ void Spell::EffectApplyAura(SpellEffectIndex eff_idx)
 
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Spell: Aura is: %u", m_spellInfo->EffectApplyAuraName[eff_idx]);
 
-    Aura* aur = CreateAura(m_spellInfo, eff_idx, &m_currentBasePoints[eff_idx], m_spellAuraHolder, unitTarget, caster, m_CastItem);
+    Aura* aur = CreateAura(m_spellInfo, eff_idx, &damage, &m_currentBasePoints[eff_idx], m_spellAuraHolder, unitTarget, caster, m_CastItem);
     m_spellAuraHolder->AddAura(aur, eff_idx);
 }
 
@@ -4014,7 +4023,7 @@ void Spell::EffectPersistentAA(SpellEffectIndex eff_idx)
 
     DynamicObject* dynObj = new DynamicObject;
     if (!dynObj->Create(pCaster->GetMap()->GenerateLocalLowGuid(HIGHGUID_DYNAMICOBJECT), pCaster, m_spellInfo->Id,
-                        eff_idx, m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ, m_duration, radius, DYNAMIC_OBJECT_AREA_SPELL, target))
+                        eff_idx, m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ, m_duration, radius, DYNAMIC_OBJECT_AREA_SPELL, target, damage, m_currentBasePoints[eff_idx]))
     {
         delete dynObj;
         return;
@@ -4391,7 +4400,7 @@ void Spell::EffectApplyAreaAura(SpellEffectIndex eff_idx)
     if (!unitTarget->isAlive())
         return;
 
-    AreaAura* Aur = new AreaAura(m_spellInfo, eff_idx, &m_currentBasePoints[eff_idx], m_spellAuraHolder, unitTarget, m_caster, m_CastItem);
+    AreaAura* Aur = new AreaAura(m_spellInfo, eff_idx, &damage, &m_currentBasePoints[eff_idx], m_spellAuraHolder, unitTarget, m_caster, m_CastItem);
     m_spellAuraHolder->AddAura(Aur, eff_idx);
 }
 
@@ -5048,7 +5057,7 @@ void Spell::EffectAddFarsight(SpellEffectIndex eff_idx)
 
     // set radius to 0: spell not expected to work as persistent aura
     if (!dynObj->Create(m_caster->GetMap()->GenerateLocalLowGuid(HIGHGUID_DYNAMICOBJECT), m_caster,
-                        m_spellInfo->Id, eff_idx, m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ, m_duration, 0, DYNAMIC_OBJECT_FARSIGHT_FOCUS, TARGET_NONE))
+                        m_spellInfo->Id, eff_idx, m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ, m_duration, 0, DYNAMIC_OBJECT_FARSIGHT_FOCUS, TARGET_NONE, damage, m_currentBasePoints[eff_idx]))
     {
         delete dynObj;
         return;
@@ -5206,22 +5215,13 @@ void Spell::EffectTeleUnitsFaceCaster(SpellEffectIndex eff_idx)
     if (unitTarget->IsTaxiFlying())
         return;
 
-    float fx, fy, fz;
+    float x, y, z;
     if (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)
-        m_targets.getDestination(fx, fy, fz);
+        m_targets.getDestination(x, y, z);
     else
-    {
-        if (float dis = GetSpellRadius(sSpellRadiusStore.LookupEntry(m_spellInfo->EffectRadiusIndex[eff_idx])))
-            m_caster->GetClosePoint(fx, fy, fz, unitTarget->GetObjectBoundingRadius(), dis);
-        else
-        {
-            fx = m_caster->GetPositionX();
-            fy = m_caster->GetPositionY();
-            fz = m_caster->GetPositionZ();
-        }
-    }
+        return;
 
-    unitTarget->NearTeleportTo(fx, fy, fz, -m_caster->GetOrientation(), unitTarget == m_caster);
+    unitTarget->NearTeleportTo(x, y, z, -m_caster->GetOrientation(), unitTarget == m_caster);
 }
 
 void Spell::EffectLearnSkill(SpellEffectIndex eff_idx)
@@ -5309,7 +5309,7 @@ void Spell::EffectEnchantItemPerm(SpellEffectIndex eff_idx)
     // remove old enchanting before applying new if equipped
     item_owner->ApplyEnchantment(itemTarget, PERM_ENCHANTMENT_SLOT, false);
 
-    itemTarget->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchant_id, 0, 0);
+    itemTarget->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchant_id, 0, 0, m_caster->GetObjectGuid());
 
     // add new enchanting if equipped
     item_owner->ApplyEnchantment(itemTarget, PERM_ENCHANTMENT_SLOT, true);
@@ -5438,7 +5438,7 @@ void Spell::EffectEnchantItemTmp(SpellEffectIndex eff_idx)
     // remove old enchanting before applying new if equipped
     item_owner->ApplyEnchantment(itemTarget, TEMP_ENCHANTMENT_SLOT, false);
 
-    itemTarget->SetEnchantment(TEMP_ENCHANTMENT_SLOT, enchant_id, duration * 1000, 0);
+    itemTarget->SetEnchantment(TEMP_ENCHANTMENT_SLOT, enchant_id, duration * 1000, 0, m_caster->GetObjectGuid());
 
     // add new enchanting if equipped
     item_owner->ApplyEnchantment(itemTarget, TEMP_ENCHANTMENT_SLOT, true);
@@ -6371,8 +6371,12 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                 case 25652:
                 case 29128:
                 case 29129:
+                case 34448:
+                case 34452:
                 case 35376:
                 case 35727:
+                case 45367:
+                case 45370:
                 {
                     if (!unitTarget)
                         return;
@@ -6386,13 +6390,17 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                         case 25652: spellid =  30141; break;
                         case 29128: spellid =  32571; break;
                         case 29129: spellid =  32569; break;
+                        case 34448: spellid =  26566; break;
+                        case 34452: spellid =  26572; break;
                         case 35376: spellid =  25649; break;
                         case 35727: spellid =  35730; break;
+                        case 45367: spellid =  45368; break;
+                        case 45370: spellid =  45371; break;
                         default:
                             return;
                     }
 
-                    unitTarget->CastSpell(unitTarget, spellid, TRIGGERED_NONE);
+                    unitTarget->CastSpell(nullptr, spellid, TRIGGERED_NONE);
                     return;
                 }
                 case 25671:                                 // Drain Mana
@@ -7128,6 +7136,11 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                     unitTarget->CastSpell(unitTarget, 39502, TRIGGERED_NONE);
                     unitTarget->CastSpell(unitTarget, 39503, TRIGGERED_NONE);
                     unitTarget->CastSpell(unitTarget, 39504, TRIGGERED_NONE);
+                    return;
+                }
+                case 39835:                                 // Needle Spine
+                {
+                    unitTarget->CastSpell(nullptr, 39968, TRIGGERED_NONE);
                     return;
                 }
                 case 40022:                                 // Four Dragons: Aggro Check
@@ -8106,7 +8119,7 @@ void Spell::EffectEnchantHeldItem(SpellEffectIndex eff_idx)
             return;
 
         // Apply the temporary enchantment
-        item->SetEnchantment(slot, enchant_id, duration * IN_MILLISECONDS, 0);
+        item->SetEnchantment(slot, enchant_id, duration * IN_MILLISECONDS, 0, m_caster->GetObjectGuid());
 
         // Improved Weapon Totems
         if (m_spellInfo->IsFitToFamilyMask(0x0000000004000000)) // Flametongue totem
@@ -8502,10 +8515,6 @@ void Spell::EffectCharge(SpellEffectIndex /*eff_idx*/)
         m_caster->MonsterMoveWithSpeed(pos.coord_x, pos.coord_y, (pos.coord_z + unitTarget->GetObjectScale()), speed, false, false);
     else
         m_caster->MonsterMoveWithSpeed(pos.coord_x, pos.coord_y, (pos.coord_z + unitTarget->GetObjectScale()), speed, true, true);
-
-    // not all charge effects used in negative spells
-    if (unitTarget != m_caster && !IsPositiveSpell(m_spellInfo->Id, m_caster, unitTarget))
-        m_caster->Attack(unitTarget, true);
 }
 
 void Spell::EffectCharge2(SpellEffectIndex /*eff_idx*/)

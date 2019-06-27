@@ -405,18 +405,33 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
 
     switch (spellInfo->Id)
     {
+        case 3235:          // Rancid Blood
         case 3417:          // Thrash
+        case 6752:          // Weak Poison Proc
+        case 7276:          // Poison Proc
+        case 8247:          // Wandering Plague
+        case 8279:          // Stealth Detection
+        case 8393:          // Barbs
+        case 8601:          // Slowing Poison
         case 8876:          // Thrash
         case 9205:          // Hate to Zero (Hate to Zero)
         case 9460:          // Corrosive Ooze
+        case 9941:          // Spell Reflection
+        case 10022:         // Deadly Poison
+        case 10072:         // Splintered Obsidian
+        case 10074:         // Spell Reflection
         case 10095:         // Hate to Zero (Hate to Zero)
         case 11838:         // Hate to Zero (Hate to Zero)
+        case 11919:         // Poison Proc
+        case 11984:         // Immolate
         case 12529:         // Chilling Touch
         case 12546:         // Spitelash (Spitelash)
         case 12787:         // Thrash
+        case 13299:         // Poison Proc
         case 13767:         // Hate to Zero (Hate to Zero)
         case 16140:         // Exploding Cadaver (Exploding Cadaver)
         case 17327:         // Spirit Particles
+        case 17467:         // Unholy Aura
         case 18943:         // Double Attack
         case 18950:         // Invisibility and Stealth Detection
         case 19194:         // Double Attack
@@ -430,6 +445,7 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 22735:         // Spirit of Runn Tum
         case 22856:         // Ice Lock (Guard Slip'kik ice trap in Dire Maul)
         case 25592:         // Hate to Zero (Hate to Zero)
+        case 27987:         // Unholy Aura
         case 28126:         // Spirit Particles (purple)
         case 29406:         // Shadowform
         case 29526:         // Hate to Zero (Hate to Zero)
@@ -437,12 +453,19 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 31690:         // Putrid Mushroom
         case 32007:         // Mo'arg Engineer Transform Visual
         case 33460:         // Inhibit Magic
+        case 33908:         // Burning Spikes
         case 35596:         // Power of the Legion
         case 35841:         // Draenei Spirit Visual
         case 35850:         // Draenei Spirit Visual 2
+        case 36006:         // Fel Fire Aura
+        case 36784:         // Entropic Aura
+        case 36788:         // Diminish Soul
         case 37266:         // Disease Cloud
         case 37497:         // Shadowmoon Ghost Invisibility (Ghostrider of Karabor in SMV) 
         case 37863:         // Disease Cloud
+        case 38844:         // Unholy Aura
+        case 38847:         // Diminish Soul
+        case 39102:         // Glowy (Black)
         case 39311:         // Scrapped Fel Reaver transform aura that is never removed even on evade
         case 39918:         // Soulgrinder Ritual Visual ( in progress)
         case 39920:         // Soulgrinder Ritual Visual ( beam)
@@ -1099,7 +1122,7 @@ inline bool IsPositiveEffect(const SpellEntry* spellproto, SpellEffectIndex effI
 inline bool IsPositiveAuraEffect(const SpellEntry* entry, SpellEffectIndex effIndex, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)
 {
     return IsAuraApplyEffect(entry, effIndex) && !IsEffectTargetNegative(entry->EffectImplicitTargetA[effIndex], entry->EffectImplicitTargetB[effIndex])
-        && !entry->HasAttribute(SPELL_ATTR_AURA_IS_DEBUFF);
+        && !entry->HasAttribute(SPELL_ATTR_AURA_IS_DEBUFF) && entry->Effect[effIndex] != SPELL_EFFECT_APPLY_AREA_AURA_ENEMY;
 }
 
 inline bool IsPositiveSpellTargetModeForSpecificTarget(const SpellEntry* entry, uint8 effectMask, const WorldObject* caster = nullptr, const WorldObject* target = nullptr)

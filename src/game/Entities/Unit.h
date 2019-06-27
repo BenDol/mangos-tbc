@@ -49,8 +49,8 @@ enum SpellInterruptFlags
 {
     SPELL_INTERRUPT_FLAG_MOVEMENT     = 0x01,
     SPELL_INTERRUPT_FLAG_DAMAGE       = 0x02,
-    SPELL_INTERRUPT_FLAG_INTERRUPT    = 0x04,
-    SPELL_INTERRUPT_FLAG_AUTOATTACK   = 0x08,
+    SPELL_INTERRUPT_FLAG_UNK3         = 0x04,
+    SPELL_INTERRUPT_FLAG_INTERRUPT    = 0x08,
     SPELL_INTERRUPT_FLAG_ABORT_ON_DMG = 0x10,               // _complete_ interrupt on direct damage
     // SPELL_INTERRUPT_UNK             = 0x20               // unk, 564 of 727 spells having this spell start with "Glyph"
 };
@@ -1703,6 +1703,9 @@ class Unit : public WorldObject
         float CalculateSpellCritChance(const Unit* victim, SpellSchoolMask schoolMask, const SpellEntry* spell) const;
         float CalculateSpellMissChance(const Unit* victim, SpellSchoolMask schoolMask, const SpellEntry* spell) const;
 
+        /*Hack to support always hitting creatures. TODO: investigate Serpentshrine Parasite*/
+        void SetAlwaysHit(bool value) { m_alwaysHit = value; }
+
         bool RollSpellCritOutcome(const Unit* victim, SpellSchoolMask schoolMask, const SpellEntry* spell) const;
 
         float GetExpertisePercent(WeaponAttackType attType) const;
@@ -1848,7 +1851,10 @@ class Unit : public WorldObject
         void SendSpellNonMeleeDamageLog(Unit* target, uint32 spellID, uint32 damage, SpellSchoolMask damageSchoolMask, uint32 absorbedDamage, int32 resist, bool isPeriodic, uint32 blocked, bool criticalHit = false, bool split = false);
         void SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo) const;
         void SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo) const;
+        void SendSpellDamageResist(Unit* target, uint32 spellId) const;
         void SendSpellOrDamageImmune(Unit* target, uint32 spellID) const;
+
+        void SendEnchantmentLog(ObjectGuid targetGuid, uint32 itemEntry, uint32 enchantId) const;
 
         void CasterHitTargetWithSpell(Unit* realCaster, Unit* target, SpellEntry const* spellInfo, bool success = true);
         bool CanInitiateAttack() const;
@@ -2627,6 +2633,8 @@ class Unit : public WorldObject
         // Need to safeguard aura proccing in Unit::ProcDamageAndSpell
         bool m_spellProcsHappening;
         std::vector<SpellAuraHolder*> m_delayedSpellAuraHolders;
+
+        bool m_alwaysHit;
 
         // guard to prevent chaining extra attacks
         bool m_extraAttacksExecuting;

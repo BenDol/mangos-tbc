@@ -2113,11 +2113,19 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(ProcExecutionData& data
                     if (int32(GetHealth()) - int32(damage) >= int32(GetMaxHealth() * triggerAmount / 100))
                         return SPELL_AURA_PROC_FAILED;
                     break;
-                    // case 45205: break;                   // Copy Offhand Weapon
-                    // case 45903: break:                   // Offensive State
-                    // case 46146: break:                   // [PH] Ahune  Spanky Hands
-                    // case 46146: break;                   // [PH] Ahune  Spanky Hands
-                case 45343:                          // Dark Flame Aura proc from scarolash
+                // case 45205: break;                   // Copy Offhand Weapon
+                // case 45903: break:                   // Offensive State
+                // case 46146: break:                   // [PH] Ahune  Spanky Hands
+                // case 46146: break;                   // [PH] Ahune  Spanky Hands
+                case 45396:                         // Blessed Weapon Coating
+                case 45398:                         // Righteous Weapon Coating
+                {
+                    uint32 zoneId = GetZoneId();
+                    if (zoneId != 4075  && zoneId != 4080 && zoneId != 4131)
+                        return SPELL_AURA_PROC_FAILED;
+                    break;
+                }
+                case 45343:                         // Dark Flame Aura proc from scarolash
                 {
                     if (!procSpell)
                         return SPELL_AURA_PROC_FAILED;
@@ -2168,7 +2176,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(ProcExecutionData& data
                         if (lootRecipient->GetTeam() != ((Player*)pVictim)->GetTeam()) // prevents horde/alliance griefing
                             return SPELL_AURA_PROC_FAILED;
                     break;
-                    // case 50051: break;                   // Ethereal Pet Aura
+                // case 50051: break;                   // Ethereal Pet Aura
             }
             break;
         case SPELLFAMILY_MAGE:
@@ -2799,7 +2807,8 @@ SpellAuraProcResult Unit::HandleMendingAuraProc(ProcExecutionData& data)
                         continue;
 
                     int32 basePoints = aur->GetBasePoints();
-                    Aura* new_aur = CreateAura(spellProto, aur->GetEffIndex(), &basePoints, new_holder, target, caster);
+                    int32 damage = aur->GetModifier()->m_baseAmount;
+                    Aura* new_aur = CreateAura(spellProto, aur->GetEffIndex(), &damage, &basePoints, new_holder, target, caster);
                     new_holder->AddAura(new_aur, new_aur->GetEffIndex());
                 }
                 new_holder->SetAuraCharges(jumps, false);
@@ -2994,6 +3003,12 @@ SpellAuraProcResult Unit::HandlePeriodicAuraProc(ProcExecutionData& data)
         case 36659: // Tail Sting
             if (triggeredByAura->GetHolder()->ModStackAmount(-1, nullptr)) // Remove aura on return true
                 RemoveSpellAuraHolder(triggeredByAura->GetHolder(), AURA_REMOVE_BY_DEFAULT);
+        case 35244: // Choking Vines
+            if (triggeredByAura->GetHolder()->GetStackAmount() == triggeredByAura->GetHolder()->GetSpellProto()->StackAmount)
+            {
+                RemoveSpellAuraHolder(triggeredByAura->GetHolder(), AURA_REMOVE_BY_DEFAULT);
+                CastSpell(nullptr, 35247, TRIGGERED_OLD_TRIGGERED); // constricting wound
+            }
             break;
     }
 

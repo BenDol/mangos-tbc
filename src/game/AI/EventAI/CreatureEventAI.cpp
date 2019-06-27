@@ -95,7 +95,6 @@ CreatureEventAI::CreatureEventAI(Creature* creature) : CreatureAI(creature),
     m_EventUpdateTime(0),
     m_EventDiff(0),
     m_Phase(0),
-    m_DynamicMovement(false),
     m_HasOOCLoSEvent(false),
     m_InvinceabilityHpLevel(0),
     m_throwAIEventMask(0),
@@ -845,23 +844,6 @@ bool CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
 
             switch (castResult)
             {
-                case CAST_OK:
-                {
-                    if (m_DynamicMovement)
-                    {
-                        SetCombatMovement(false, true);
-
-                        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
-
-                        if (spellInfo && !(spellInfo->rangeIndex == SPELL_RANGE_IDX_COMBAT || spellInfo->rangeIndex == SPELL_RANGE_IDX_SELF_ONLY) && target != m_creature)
-                        {
-                            SpellRangeEntry const* spellRange = sSpellRangeStore.LookupEntry(spellInfo->rangeIndex);
-                            if (spellRange)
-                                m_LastSpellMaxRange = spellRange->maxRange;
-                        }
-                    }
-                    break;
-                }
                 case CAST_FAIL_TOO_FAR:
                 case CAST_FAIL_POWER:
                 case CAST_FAIL_NOT_IN_LOS:
@@ -887,8 +869,6 @@ bool CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
                                 }
                             }
                         }
-                        else if (m_DynamicMovement)
-                            m_LastSpellMaxRange = 0.0f;
                     }
                     break;
                 }
@@ -1272,15 +1252,6 @@ bool CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
             }
             break;
         }
-        case ACTION_T_DYNAMIC_MOVEMENT:
-        {
-            if ((action.dynamicMovement.state != 0) == m_DynamicMovement)
-                break;
-
-            m_DynamicMovement = action.dynamicMovement.state != 0;
-            SetCombatMovement(!m_DynamicMovement, true);
-            break;
-        }
         case ACTION_T_SET_REACT_STATE:
         {
             // only set this on spawn event for now (need more implementation to set it in another place)
@@ -1501,12 +1472,6 @@ void CreatureEventAI::JustReachedHome()
 
 void CreatureEventAI::EnterEvadeMode()
 {
-    if (m_DynamicMovement)
-    {
-        m_DynamicMovement = false;
-        SetCombatMovement(!m_DynamicMovement);
-    }
-
     UnitAI::EnterEvadeMode();
 
     // Handle Evade events
@@ -1700,7 +1665,7 @@ void CreatureEventAI::UpdateAI(const uint32 diff)
 
     Unit* victim = m_creature->getVictim();
     // Melee Auto-Attack
-    if (Combat && victim && !(m_creature->IsNonMeleeSpellCasted(false) || m_creature->hasUnitState(UNIT_STAT_CAN_NOT_REACT)) && !m_combatScriptHappening)
+    if (Combat && victim && CanExecuteCombatAction())
     {
         if (m_rangedMode)
         {
@@ -1708,24 +1673,7 @@ void CreatureEventAI::UpdateAI(const uint32 diff)
                 SetCurrentRangedMode(false);
         }
 
-        // Update creature dynamic movement position before doing anything else
-        if (m_DynamicMovement)
-        {
-            if (m_creature->IsWithinLOSInMap(victim))
-            {
-                if (m_LastSpellMaxRange && m_creature->IsInRange(victim, 0, (m_LastSpellMaxRange / 1.5f)) &&
-                        m_creature->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE)
-                {
-                    if (IsCombatMovement())
-                        SetCombatMovement(false, true);
-                }
-                else
-                    SetCombatMovement(true, true);
-            }
-            else
-                SetCombatMovement(true, true);
-        }
-        else if (m_meleeEnabled && !m_currentRangedMode)
+        if (m_meleeEnabled && !m_currentRangedMode)
             DoMeleeAttackIfReady();
     }
 }
@@ -2079,23 +2027,21 @@ void CreatureEventAI::DistanceYourself()
     if (m_mainSpellCost * 2 > m_creature->GetPower(POWER_MANA))
         return;
 
-    float distance = DISTANCING_CONSTANT + std::max(m_creature->GetCombinedCombatReach(victim) * 1.5f, m_creature->GetCombinedCombatReach(victim) + m_mainSpellMinRange);
+    float combatReach = m_creature->GetCombinedCombatReach(victim, true);
+    float distance = DISTANCING_CONSTANT + std::max(combatReach * 1.5f, combatReach + m_mainSpellMinRange);
     m_creature->GetMotionMaster()->DistanceYourself(distance);
 }
 
 void CreatureEventAI::DistancingStarted()
 {
     SetCombatScriptStatus(true);
-
-    if (!m_currentRangedMode)
-        SetCurrentRangedMode(true);
 }
 
 void CreatureEventAI::DistancingEnded()
 {
     SetCombatScriptStatus(false);
-    if (m_creature->getVictim())
-        DoStartMovement(m_creature->getVictim());
+    if (!m_currentRangedMode)
+        SetCurrentRangedMode(true);
 }
 
 void CreatureEventAI::JustStoppedMovementOfTarget(SpellEntry const* spellInfo, Unit* victim)

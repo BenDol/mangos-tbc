@@ -283,6 +283,7 @@ struct boss_kelidan_the_breakerAI : public ScriptedAI
             m_uiBurningNovaTimer -= uiDiff;
 
         DoMeleeAttackIfReady();
+        EnterEvadeIfOutOfCombatArea(uiDiff);
     }
 };
 
@@ -389,6 +390,7 @@ struct mob_shadowmoon_channelerAI : public ScriptedAI
             {
                 if (Creature* target = m_creature->GetMap()->GetCreature(m_target))
                     m_creature->CastSpell(target, SPELL_CHANNELING, TRIGGERED_NONE);
+                m_setupTimer = 0;
             }
             else m_setupTimer -= uiDiff;
         }

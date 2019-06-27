@@ -715,6 +715,7 @@ void Player::CleanupsBeforeDelete()
     // notify zone scripts for player logout
     sOutdoorPvPMgr.HandlePlayerLeaveZone(this, m_zoneUpdateId);
     sWorldState.HandlePlayerLeaveZone(this, m_zoneUpdateId);
+    sWorldState.HandlePlayerLeaveArea(this, m_areaUpdateId);
 
     Unit::CleanupsBeforeDelete();
 }
@@ -3633,15 +3634,14 @@ void Player::_SaveSpellCooldowns()
     stmt.PExecute(GetGUIDLow());
 
     static SqlStatementID insertSpellCooldown;
-    TimePoint currTime = GetMap()->GetCurrentClockTime();
 
     for (auto& cdItr : m_cooldownMap)
     {
         auto& cdData = cdItr.second;
         if (!cdData->IsPermanent())
         {
-            TimePoint sTime = currTime;
-            TimePoint cTime = currTime;
+            TimePoint sTime = TimePoint::min();
+            TimePoint cTime = TimePoint::min();
             cdData->GetSpellCDExpireTime(sTime);
             cdData->GetCatCDExpireTime(cTime);
             uint64 spellExpireTime = uint64(Clock::to_time_t(sTime));
@@ -6854,7 +6854,7 @@ uint32 Player::GetGuildIdFromDB(ObjectGuid guid)
 
 uint32 Player::GetRankFromDB(ObjectGuid guid)
 {
-    QueryResult* result = CharacterDatabase.PQuery("SELECT rank FROM guild_member WHERE guid='%u'", guid.GetCounter());
+    QueryResult* result = CharacterDatabase.PQuery("SELECT `rank` FROM guild_member WHERE guid='%u'", guid.GetCounter());
     if (result)
     {
         uint32 v = result->Fetch()[0].GetUInt32();
@@ -15187,20 +15187,13 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     _LoadMailedItems(holder->GetResult(PLAYER_LOGIN_QUERY_LOADMAILEDITEMS));
     UpdateNextMailTimeAndUnreads();
 
+    _LoadSpells(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSPELLS));
+
     _LoadAuras(holder->GetResult(PLAYER_LOGIN_QUERY_LOADAURAS), time_diff);
 
     // add ghost flag (must be after aura load: PLAYER_FLAGS_GHOST set in aura)
     if (HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
         m_deathState = DEAD;
-
-    // train spells by loaded skills
-    for (auto itr = mSkillStatus.begin(); itr != mSkillStatus.end(); ++itr)
-    {
-        if (itr->second.uState != SKILL_DELETED)
-            UpdateSkillTrainedSpells(uint16(itr->first), SKILL_VALUE(GetUInt32Value(PLAYER_SKILL_VALUE_INDEX(itr->second.pos))));
-    }
-
-    _LoadSpells(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSPELLS));
 
     // after spell load
     InitTalentForLevel();
@@ -15474,7 +15467,7 @@ void Player::_LoadAuras(QueryResult* result, uint32 timediff)
                 if ((effIndexMask & (1 << i)) == 0)
                     continue;
 
-                Aura* aura = CreateAura(spellproto, SpellEffectIndex(i), nullptr, holder, this);
+                Aura* aura = CreateAura(spellproto, SpellEffectIndex(i), nullptr, nullptr, holder, this);
                 if (!damage[i])
                     damage[i] = aura->GetModifier()->m_amount;
 
@@ -16045,9 +16038,9 @@ void Player::_LoadSpells(QueryResult* result)
 {
     // QueryResult *result = CharacterDatabase.PQuery("SELECT spell,active,disabled FROM character_spell WHERE guid = '%u'",GetGUIDLow());
 
+    std::vector<std::tuple<uint32, bool, bool>> spells;
     if (result)
     {
-        std::vector<std::tuple<uint32, bool, bool>> spells;
         do
         {
             Field* fields = result->Fetch();
@@ -16063,11 +16056,18 @@ void Player::_LoadSpells(QueryResult* result)
         }
         while (result->NextRow());
 
-        for (auto& data : spells)
-            addSpell(std::get<0>(data), std::get<1>(data), false, false, std::get<2>(data));
-
         delete result;
     }
+
+    // train spells by loaded skills
+    for (auto itr = mSkillStatus.begin(); itr != mSkillStatus.end(); ++itr)
+    {
+        if (itr->second.uState != SKILL_DELETED)
+            UpdateSkillTrainedSpells(uint16(itr->first), SKILL_VALUE(GetUInt32Value(PLAYER_SKILL_VALUE_INDEX(itr->second.pos))));
+    }
+
+    for (auto& data : spells)
+        addSpell(std::get<0>(data), std::get<1>(data), false, false, std::get<2>(data));
 }
 
 void Player::_LoadGroup(QueryResult* result)
