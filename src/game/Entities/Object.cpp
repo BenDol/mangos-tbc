@@ -41,6 +41,16 @@
 #include "Loot/LootMgr.h"
 #include "Spells/SpellMgr.h"
 
+constexpr float VisibilityDistances[AsUnderlyingType(VisibilityDistanceType::Max)] =
+{
+    DEFAULT_VISIBILITY_DISTANCE,
+    VISIBILITY_DISTANCE_TINY,
+    VISIBILITY_DISTANCE_SMALL,
+    VISIBILITY_DISTANCE_LARGE,
+    VISIBILITY_DISTANCE_GIGANTIC,
+    MAX_VISIBILITY_DISTANCE
+};
+
 Object::Object(): m_updateFlag(0), m_itsNewObject(false)
 {
     m_objectTypeId      = TYPEID_OBJECT;
@@ -110,12 +120,14 @@ void Object::SendForcedObjectUpdate()
     BuildUpdateData(update_players);
     RemoveFromClientUpdateList();
 
-    WorldPacket packet;                                     // here we allocate a std::vector with a size of 0x10000
+    // here we allocate a std::vector with a size of 0x10000
     for (auto& update_player : update_players)
     {
-        update_player.second.BuildPacket(packet);
-        update_player.first->GetSession()->SendPacket(packet);
-        packet.clear();                                     // clean the string
+        for (size_t i = 0; i < update_player.second.GetPacketCount(); ++i)
+        {
+            WorldPacket packet = update_player.second.BuildPacket(i);
+            update_player.first->GetSession()->SendPacket(packet);
+        }
     }
 }
 
@@ -185,12 +197,14 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) c
 void Object::SendCreateUpdateToPlayer(Player* player) const
 {
     // send create update to player
-    UpdateData upd;
-    WorldPacket packet;
+    UpdateData updateData;
+    BuildCreateUpdateBlockForPlayer(&updateData, player);
 
-    BuildCreateUpdateBlockForPlayer(&upd, player);
-    upd.BuildPacket(packet);
-    player->GetSession()->SendPacket(packet);
+    for (size_t i = 0; i < updateData.GetPacketCount(); ++i)
+    {
+        WorldPacket packet = updateData.BuildPacket(i);
+        player->GetSession()->SendPacket(packet);
+    }
 }
 
 void Object::BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target) const
@@ -1057,7 +1071,8 @@ void Object::ForceValuesUpdateAtIndex(uint16 index)
 WorldObject::WorldObject() :
     m_transportInfo(nullptr), m_isOnEventNotified(false),
     m_currMap(nullptr), m_mapId(0),
-    m_InstanceId(0), m_isActiveObject(false), m_dirty(true)
+    m_InstanceId(0), m_isActiveObject(false), m_dirty(true),
+    m_visibilityDistanceOverride(0.f)
 {
 }
 
@@ -2165,6 +2180,31 @@ void WorldObject::SetActiveObjectState(bool active)
             GetMap()->AddToActive(this);
     }
     m_isActiveObject = active;
+}
+
+void WorldObject::SetVisibilityDistanceOverride(VisibilityDistanceType type)
+{
+    MANGOS_ASSERT(type < VisibilityDistanceType::Max);
+    if (GetTypeId() == TYPEID_PLAYER)
+        return;
+
+    m_visibilityDistanceOverride = VisibilityDistances[AsUnderlyingType(type)];
+}
+
+float WorldObject::GetVisibilityDistance() const
+{
+    if (IsVisibilityOverridden())
+        return m_visibilityDistanceOverride;
+    else
+        return GetMap()->GetVisibilityDistance();
+}
+
+float WorldObject::GetVisibilityDistanceFor(WorldObject* obj) const
+{
+    if (IsVisibilityOverridden() && obj->GetTypeId() == TYPEID_PLAYER)
+        return m_visibilityDistanceOverride;
+    else
+        return obj->GetVisibilityDistance();
 }
 
 void WorldObject::SetNotifyOnEventState(bool state)

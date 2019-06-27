@@ -2292,7 +2292,7 @@ void Player::RegenerateHealth()
     if (addvalue < 0)
         addvalue = 0;
 
-    ModifyHealth(int32(addvalue));
+    ModifyHealth(int32(addvalue * 2));
 }
 
 Creature* Player::GetNPCIfCanInteractWith(ObjectGuid guid, uint32 npcflagmask)
@@ -5147,45 +5147,6 @@ float Player::GetRatingMultiplier(CombatRating cr) const
 float Player::GetRatingBonusValue(CombatRating cr) const
 {
     return float(GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + cr)) * GetRatingMultiplier(cr);
-}
-
-float Player::OCTRegenHPPerSpirit() const
-{
-    uint32 level = getLevel();
-    uint32 pclass = getClass();
-
-    if (level > GT_MAX_LEVEL) level = GT_MAX_LEVEL;
-
-    GtOCTRegenHPEntry     const* baseRatio = sGtOCTRegenHPStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    GtRegenHPPerSptEntry  const* moreRatio = sGtRegenHPPerSptStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (baseRatio == nullptr || moreRatio == nullptr)
-        return 0.0f;
-
-    // Formula from PaperDollFrame script
-    float spirit = GetStat(STAT_SPIRIT);
-    float baseSpirit = spirit;
-    if (baseSpirit > 50) baseSpirit = 50;
-    float moreSpirit = spirit - baseSpirit;
-    float regen = baseSpirit * baseRatio->ratio + moreSpirit * moreRatio->ratio;
-    return regen;
-}
-
-float Player::OCTRegenMPPerSpirit() const
-{
-    uint32 level = getLevel();
-    uint32 pclass = getClass();
-
-    if (level > GT_MAX_LEVEL) level = GT_MAX_LEVEL;
-
-//    GtOCTRegenMPEntry     const *baseRatio = sGtOCTRegenMPStore.LookupEntry((pclass-1)*GT_MAX_LEVEL + level-1);
-    GtRegenMPPerSptEntry  const* moreRatio = sGtRegenMPPerSptStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (moreRatio == nullptr)
-        return 0.0f;
-
-    // Formula get from PaperDollFrame script
-    float spirit    = GetStat(STAT_SPIRIT);
-    float regen     = spirit * moreRatio->ratio;
-    return regen;
 }
 
 void Player::ApplyRatingMod(CombatRating cr, int32 value, bool apply)
@@ -19837,18 +19798,20 @@ void Player::UpdateForQuestWorldObjects()
     if (m_clientGUIDs.empty())
         return;
 
-    UpdateData udata;
-    WorldPacket packet;
+    UpdateData updateData;
     for (auto m_clientGUID : m_clientGUIDs)
     {
         if (m_clientGUID.IsGameObject())
         {
             if (GameObject* obj = GetMap()->GetGameObject(m_clientGUID))
-                obj->BuildValuesUpdateBlockForPlayer(&udata, this);
+                obj->BuildValuesUpdateBlockForPlayer(&updateData, this);
         }
     }
-    udata.BuildPacket(packet);
-    GetSession()->SendPacket(packet);
+    for (size_t i = 0; i < updateData.GetPacketCount(); ++i)
+    {
+        WorldPacket packet = updateData.BuildPacket(i);
+        GetSession()->SendPacket(packet);
+    }
 }
 
 void Player::UpdateEverything()
@@ -19856,24 +19819,15 @@ void Player::UpdateEverything()
     if (m_clientGUIDs.empty())
         return;
 
-    UpdateData updateDataCreature;
-    UpdateData updateDataRest;
-    WorldPacket packet;
-    for (GuidSet::const_iterator itr = m_clientGUIDs.begin(); itr != m_clientGUIDs.end(); ++itr)
+    UpdateData updateData;
+    for (const auto guid : m_clientGUIDs)
+        if (WorldObject* obj = GetMap()->GetWorldObject(guid))
+            obj->BuildForcedValuesUpdateBlockForPlayer(&updateData, this);
+    for (size_t i = 0; i < updateData.GetPacketCount(); ++i)
     {
-        if (WorldObject* obj = GetMap()->GetWorldObject(*itr))
-        {
-            if (obj->GetTypeId() == TYPEID_UNIT)
-                obj->BuildForcedValuesUpdateBlockForPlayer(&updateDataCreature, this);
-            else
-                obj->BuildValuesUpdateBlockForPlayer(&updateDataRest, this);
-        }
+        WorldPacket packet = updateData.BuildPacket(i);
+        GetSession()->SendPacket(packet);
     }
-    updateDataCreature.BuildPacket(packet); // protection against too big packets - TODO: extend to all
-    GetSession()->SendPacket(packet);
-    packet.clear();
-    updateDataRest.BuildPacket(packet);
-    GetSession()->SendPacket(packet);
 }
 
 void Player::SummonIfPossible(bool agree)
@@ -19922,7 +19876,7 @@ void Player::AddItemDurations(Item* item)
     }
 }
 
-void Player::AutoUnequipOffhandIfNeed()
+void Player::AutoUnequipOffhandIfNeed(uint8 bag)
 {
     Item* offItem = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
     if (!offItem)
@@ -19936,7 +19890,7 @@ void Player::AutoUnequipOffhandIfNeed()
         return;
 
     ItemPosCountVec off_dest;
-    uint8 off_msg = CanStoreItem(NULL_BAG, NULL_SLOT, off_dest, offItem, false);
+    uint8 off_msg = CanStoreItem(bag, NULL_SLOT, off_dest, offItem, false);
     if (off_msg == EQUIP_ERR_OK)
     {
         RemoveItem(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND, true);

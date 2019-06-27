@@ -2692,6 +2692,25 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, bool targ
                 tempUnitList.push_back(m_targets.getUnitTarget());
             break;
         }
+        case TARGET_CORPSE_ENEMY_NEAR_CASTER:
+        {
+            WorldObject* result = FindCorpseUsing<MaNGOS::TauntFlagObjectCheck>();
+            if (result)
+            {
+                switch (result->GetTypeId())
+                {
+                    case TYPEID_UNIT:
+                    case TYPEID_PLAYER:
+                        tempUnitList.push_back(static_cast<Unit*>(result));
+                        break;
+                    case TYPEID_CORPSE:
+                        if (Player* owner = ObjectAccessor::FindPlayer(static_cast<Corpse*>(result)->GetOwnerGuid()))
+                            tempUnitList.push_back(owner);
+                        break;
+                }
+            }
+            break;
+        }
         case TARGET_UNIT_SCRIPT_NEAR_CASTER:
         case TARGET_GAMEOBJECT_SCRIPT_NEAR_CASTER:
         case TARGET_LOCATION_SCRIPT_NEAR_CASTER:
@@ -4502,7 +4521,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     if (!m_caster->isAlive() && m_caster->IsPlayer() && !m_spellInfo->HasAttribute(SPELL_ATTR_CASTABLE_WHILE_DEAD) && !m_spellInfo->HasAttribute(SPELL_ATTR_PASSIVE))
         return SPELL_FAILED_CASTER_DEAD;
 
-    if (!m_caster->IsStandState() && !m_spellInfo->HasAttribute(SPELL_ATTR_CASTABLE_WHILE_SITTING))
+    if (!m_caster->IsStandState() && m_caster->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED) && !m_spellInfo->HasAttribute(SPELL_ATTR_CASTABLE_WHILE_SITTING))
         return SPELL_FAILED_NOT_STANDING;
 
     // check global cooldown
@@ -6296,8 +6315,13 @@ SpellCastResult Spell::CheckItems()
 
                 if (!m_IsTriggeredSpell && m_spellInfo->EffectItemType[i])
                 {
+                    ItemPrototype const* itemProto = ObjectMgr::GetItemPrototype(m_spellInfo->EffectItemType[i]);
+                    if (!itemProto)
+                        return SPELL_FAILED_ITEM_NOT_FOUND; // custom error in case item template is missing
                     ItemPosCountVec dest;
-                    InventoryResult msg = playerTarget->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, m_spellInfo->EffectItemType[i], CalculateDamage(SpellEffectIndex(i), m_caster));
+                    uint32 count = CalculateDamage(SpellEffectIndex(i), m_caster);
+                    count = count > itemProto->Stackable ? itemProto->Stackable : count;
+                    InventoryResult msg = playerTarget->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, m_spellInfo->EffectItemType[i], count);
                     if (msg != EQUIP_ERR_OK)
                     {
                         p_caster->SendEquipError(msg, nullptr, nullptr, m_spellInfo->EffectItemType[i]);

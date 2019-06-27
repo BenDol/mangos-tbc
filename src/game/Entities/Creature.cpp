@@ -199,6 +199,10 @@ void Creature::AddToWorld()
     if (sWorld.isForceLoadMap(GetMapId()) || (GetCreatureInfo()->ExtraFlags & CREATURE_EXTRA_FLAG_ACTIVE))
         SetActiveObjectState(true);
 
+    // Check if visibility distance different
+    if (GetCreatureInfo()->visibilityDistanceType != VisibilityDistanceType::Normal)
+        SetVisibilityDistanceOverride(GetCreatureInfo()->visibilityDistanceType);
+
     if (m_countSpawns)
         GetMap()->AddToSpawnCount(GetObjectGuid());
 }
@@ -719,12 +723,12 @@ void Creature::RegenerateAll(uint32 update_diff)
     if (!isInCombat() || IsEvadeRegen())
         RegenerateHealth();
 
-    RegeneratePower();
+    RegeneratePower(2.f);
 
     m_regenTimer = REGEN_TIME_FULL;
 }
 
-void Creature::RegeneratePower()
+void Creature::RegeneratePower(float timerMultiplier)
 {
     if (!IsRegeneratingPower())
         return;
@@ -747,9 +751,8 @@ void Creature::RegeneratePower()
                 if (!IsUnderLastManaUseEffect())
                 {
                     float ManaIncreaseRate = sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_MANA);
-                    float Spirit = GetStat(STAT_SPIRIT);
-
-                    addValue = (Spirit / 5.0f + 17.0f) * ManaIncreaseRate;
+                    float intellect = GetStat(STAT_INTELLECT);
+                    addValue = sqrt(intellect) * OCTRegenMPPerSpirit() * ManaIncreaseRate / 5.f * timerMultiplier;
                 }
             }
             else

@@ -2024,7 +2024,7 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     unitTarget->CastSpell(unitTarget, 41466, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, m_caster->GetObjectGuid());
                     return;
                 }
-                case 39992:                                 // Needle Spine Targeting
+                case 39992:                                 // Needle Spine Targeting - Najentus
                 {
                     if (!unitTarget)
                         return;
@@ -2599,6 +2599,13 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     static_cast<Player*>(m_caster)->RemoveSomeCooldown(cdCheck);
                     return;
                 }
+                case 30610:                                 // Wrath of the Titans Stacker
+                {
+                    uint32 count = m_caster->GetAuraCount(30554);
+                    for (uint32 i = count; count < 5; ++i)
+                        m_caster->CastSpell(nullptr, 30554, TRIGGERED_OLD_TRIGGERED);
+                    return;
+                }
                 case 38194:                                 // Blink
                 {
                     // Blink
@@ -3057,6 +3064,21 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     }
 
                     m_caster->CastSpell(m_caster, spell_id, TRIGGERED_OLD_TRIGGERED);
+                    return;
+                }
+                case 51640:                                 // Taunt Flag Targeting
+                {
+                    if (!unitTarget || !unitTarget->IsPlayer())
+                        return;
+
+                    float x, y, z;
+                    if (Corpse* corpse = static_cast<Player*>(unitTarget)->GetCorpse())
+                        corpse->GetPosition(x, y, z);
+                    else
+                        unitTarget->GetPosition(x, y, z);
+                    
+                    DoScriptText(-1015072, m_caster, unitTarget);
+                    m_caster->CastSpell(x, y, z, 52605, TRIGGERED_OLD_TRIGGERED); // should also send start
                     return;
                 }
             }
@@ -7138,7 +7160,7 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                     unitTarget->CastSpell(unitTarget, 39504, TRIGGERED_NONE);
                     return;
                 }
-                case 39835:                                 // Needle Spine
+                case 39835:                                 // Needle Spine - Najentus
                 {
                     unitTarget->CastSpell(nullptr, 39968, TRIGGERED_NONE);
                     return;

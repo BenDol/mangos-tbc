@@ -1476,6 +1476,8 @@ class Unit : public WorldObject
         void SetMaxHealth(uint32 val);
         void SetHealthPercent(float percent);
         int32 ModifyHealth(int32 dVal);
+        float OCTRegenHPPerSpirit() const;
+        float OCTRegenMPPerSpirit() const;
 
         Powers GetPowerType() const { return Powers(GetByteValue(UNIT_FIELD_BYTES_0, 3)); }
         void SetPowerType(Powers new_powertype);
@@ -2190,6 +2192,8 @@ class Unit : public WorldObject
         void addHatedBy(HostileReference* pHostileReference) { GetCombatData()->hostileRefManager.insertFirst(pHostileReference); };
         void removeHatedBy(HostileReference* /*pHostileReference*/) { /* nothing to do yet */ }
         HostileRefManager& getHostileRefManager() { return GetCombatData()->hostileRefManager; }
+        void SetNoThreatState(bool state) { m_noThreat = state; }
+        bool GetNoThreatState() { return m_noThreat; }
 
         Aura* GetAura(uint32 spellId, SpellEffectIndex effindex);
         Aura* GetAura(AuraType type, SpellFamily family, uint64 familyFlag, ObjectGuid casterGuid = ObjectGuid());
@@ -2635,6 +2639,7 @@ class Unit : public WorldObject
         std::vector<SpellAuraHolder*> m_delayedSpellAuraHolders;
 
         bool m_alwaysHit;
+        bool m_noThreat;
 
         // guard to prevent chaining extra attacks
         bool m_extraAttacksExecuting;
