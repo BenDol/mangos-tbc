@@ -67,6 +67,7 @@ void CreatureEventAI::GetAIInformation(ChatHandler& reader)
     reader.PSendSysMessage(LANG_NPC_EVENTAI_PHASE, uint32(m_Phase));
     reader.PSendSysMessage(LANG_NPC_EVENTAI_MOVE, reader.GetOnOffStr(!m_creature->hasUnitState(UNIT_STAT_NO_COMBAT_MOVEMENT)));
     reader.PSendSysMessage(LANG_NPC_EVENTAI_COMBAT, reader.GetOnOffStr(m_meleeEnabled));
+    reader.PSendSysMessage("Ranged mode %s, Combat Script %s.", m_currentRangedMode ? "true" : "false", GetCombatScriptStatus() ? "true" : "false");
 
     if (sLog.HasLogFilter(LOG_FILTER_EVENT_AI_DEV))         // Give some more details if in EventAI Dev Mode
         return;
@@ -104,7 +105,8 @@ CreatureEventAI::CreatureEventAI(Creature* creature) : CreatureAI(creature),
     m_rangedModeSetting(TYPE_NONE),
     m_currentRangedMode(false),
     m_chaseDistance(0.f),
-    m_depth(0)
+    m_depth(0),
+    m_defaultMovement(IDLE_MOTION_TYPE)
 {
     InitAI();
 }
@@ -918,11 +920,16 @@ bool CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
                 pCreature->AI()->AttackStart(target);
             break;
         }
-        case ACTION_T_THREAT_SINGLE_PCT:
-            if (Unit* target = GetTargetByType(action.threat_single_pct.target, actionInvoker, AIEventSender, eventTarget, failedTargetSelection))
-                m_creature->getThreatManager().modifyThreatPercent(target, action.threat_single_pct.percent);
+        case ACTION_T_THREAT_SINGLE:
+            if (Unit* target = GetTargetByType(action.threat_single.target, actionInvoker, AIEventSender, eventTarget, failedTargetSelection))
+            {
+                if (action.threat_single.isDirect)
+                    m_creature->getThreatManager().addThreat(target, action.threat_single.value);
+                else
+                    m_creature->getThreatManager().modifyThreatPercent(target, action.threat_single.value);
+            }
             else if (failedTargetSelection)
-                sLog.outErrorEventAI("Event %u - nullptr target for ACTION_T_THREAT_SINGLE_PCT(%u), target-type %u", eventId, action.type, action.threat_single_pct.target);
+                sLog.outErrorEventAI("Event %u - nullptr target for ACTION_T_THREAT_SINGLE(%u), target-type %u", eventId, action.type, action.threat_single.target);
             break;
         case ACTION_T_THREAT_ALL_PCT:
         {
@@ -1247,6 +1254,8 @@ bool CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
         }
         case ACTION_T_CHANGE_MOVEMENT:
         {
+            if (action.changeMovement.asDefault)
+                m_defaultMovement = MovementGeneratorType(action.changeMovement.movementType);
             switch (action.changeMovement.movementType)
             {
                 case IDLE_MOTION_TYPE:

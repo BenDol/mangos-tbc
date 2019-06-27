@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS `db_version`;
 CREATE TABLE `db_version` (
   `version` varchar(120) DEFAULT NULL,
   `creature_ai_version` varchar(120) DEFAULT NULL,
-  `required_s2391_01_mangos_creature_cooldown` bit(1) DEFAULT NULL
+  `required_s2392_01_mangos_quest_template_emote_delays` bit(1) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Used DB version notes';
 
 --
@@ -4085,8 +4085,8 @@ INSERT INTO `mangos_string` VALUES
 (529,'   Waypoint',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (530,'   Animal random',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (531,'   Confused',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
-(532,'   Targeted to player %s (lowguid %u) distance %f angle %f',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
-(533,'   Targeted to creature %s (lowguid %u) distance %f angle %f',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
+(532,'   Targeted to player %s (lowguid %u) distance %f angle %f mode %s',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
+(533,'   Targeted to creature %s (lowguid %u) distance %f angle %f mode %s',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (534,'   Targeted to <NULL>',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (535,'   Home movement to (X:%f Y:%f Z:%f)',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (536,'   Home movement used for player?!?',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
